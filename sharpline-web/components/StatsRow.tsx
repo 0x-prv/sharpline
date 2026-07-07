@@ -4,11 +4,11 @@ type Stats = { totalSignals: number; signalsToday: number; highConfidenceAlerts:
 
 export function StatsRow({ stats }: { stats: Stats }) {
   const items = [
-    { label: "Signals Generated", value: stats.totalSignals.toString(), trend: "Live only", icon: TrendingUp },
-    { label: "Correct Signals", value: String(stats.correctSignals ?? 0), trend: "Live only", icon: CheckCircle2 },
-    { label: "Incorrect Signals", value: String(stats.incorrectSignals ?? 0), trend: "Live only", icon: XCircle },
-    { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "Pending", trend: "Live only", icon: Target },
-    { label: "High Confidence Accuracy", value: stats.highConfidenceAccuracy !== null && stats.highConfidenceAccuracy !== undefined ? `${stats.highConfidenceAccuracy}%` : "Pending", trend: "Live only", icon: Award },
+    { label: "Signals Generated", value: stats.totalSignals > 0 ? stats.totalSignals.toString() : "No live signals yet", trend: "Historical tracking", icon: TrendingUp },
+    { label: "Correct Signals", value: (stats.correctSignals ?? 0) > 0 ? String(stats.correctSignals) : "Waiting for first resolved signal", trend: "Resolution tracking", icon: CheckCircle2 },
+    { label: "Incorrect Signals", value: (stats.incorrectSignals ?? 0) > 0 ? String(stats.incorrectSignals) : "Waiting for first resolved signal", trend: "Resolution tracking", icon: XCircle },
+    { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "Waiting for first resolved signal", trend: "Live only", icon: Target },
+    { label: "High Confidence Accuracy", value: stats.highConfidenceAccuracy !== null && stats.highConfidenceAccuracy !== undefined ? `${stats.highConfidenceAccuracy}%` : "Waiting for first resolved signal", trend: "Live only", icon: Award },
     { label: "Best Performing Strategy", value: "FOLLOW", trend: "Leading", icon: Award },
   ];
 

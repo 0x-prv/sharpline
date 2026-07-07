@@ -26,7 +26,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
       <div className="rounded-2xl border border-border bg-surface p-6">
         <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Latest Alert</p>
         <h2 className="mt-6 font-display text-2xl font-semibold text-text">No live market alerts yet</h2>
-        <p className="mt-3 text-sm leading-6 text-text-muted">SharpLine will generate alerts automatically once TxLINE odds begin moving during an active match.</p>
+        <p className="mt-3 text-sm leading-6 text-text-muted">Signals will appear automatically once TxLINE odds begin moving during an active match.</p>
       </div>
     );
   }
