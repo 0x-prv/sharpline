@@ -4,13 +4,13 @@ import { PageHeader } from "../../components/PageHeader";
 import { StatsRow } from "../../components/StatsRow";
 import { AgentHealth } from "../../components/AgentHealth";
 import { AnalyticsPanel } from "../../components/AnalyticsPanel";
-import { getFixtures, getRecentSignals, getStats } from "../../lib/queries";
+import { getAgentState, getRecentLiveSignals, getLiveSignalStats } from "../../lib/queries";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 15;
 
 export default async function AnalyticsPage() {
-  const [fixtures, recentSignals, stats] = await Promise.all([getFixtures(), getRecentSignals(8), getStats()]);
+  const [agentState, recentSignals, stats] = await Promise.all([getAgentState(), getRecentLiveSignals(8), getLiveSignalStats()]);
 
   return (
     <main>
@@ -24,7 +24,7 @@ export default async function AnalyticsPage() {
       <div className="mx-auto max-w-6xl space-y-4 px-6 py-10">
         <StatsRow stats={stats} />
         <AnalyticsPanel stats={stats} signals={recentSignals} />
-        <AgentHealth fixtureCount={fixtures.length} eventsProcessed={recentSignals.length} />
+        <AgentHealth agentState={agentState} />
       </div>
     </main>
   );

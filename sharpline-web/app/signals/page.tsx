@@ -5,13 +5,13 @@ import { SignalCard } from "../../components/SignalCard";
 import { AgentFlowLog } from "../../components/AgentFlowLog";
 import { MatchTimeline } from "../../components/MatchTimeline";
 import { OddsChart } from "../../components/OddsChart";
-import { getLatestSignal, getOddsHistoryForLatestSignal, getRecentSignals } from "../../lib/queries";
+import { getLatestLiveSignal, getOddsHistoryForLatestSignal, getRecentLiveSignals } from "../../lib/queries";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 15;
 
 export default async function SignalsPage() {
-  const [latestSignal, recentSignals] = await Promise.all([getLatestSignal(), getRecentSignals(10)]);
+  const [latestSignal, recentSignals] = await Promise.all([getLatestLiveSignal(), getRecentLiveSignals(10)]);
   const oddsTicks = latestSignal ? await getOddsHistoryForLatestSignal(latestSignal, 60) : [];
 
   return (

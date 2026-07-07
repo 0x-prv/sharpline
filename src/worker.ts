@@ -2,6 +2,9 @@ import { connectOddsStream, connectScoresStream } from "./txline/stream.js";
 import { getFixturesSnapshot } from "./txline/client.js";
 import { checkForSharpMovement } from "./engine/detector.js";
 import { classifyMovement } from "./engine/correlator.js";
+import { detectMarketSignal } from "./engine/signal-engine.js";
+import { explainSignal } from "./ai/explain.js";
+import type { MatchState } from "./types.js";
 import { resolveSignal } from "./engine/resolver.js";
 import { anchorSignalOnChain } from "./chain/memo.js";
 import { saveAnchorTx } from "./db/repository.js";
@@ -13,6 +16,10 @@ import {
   saveFinalScore,
   getPendingSignals,
   updateSignalOutcome,
+  insertMatch,
+  insertOddsSnapshot,
+  insertMarketSignal,
+  upsertAgentState,
 } from "./db/repository.js";
 import {
   refreshFixtureWindows,
@@ -24,6 +31,23 @@ import {
 const WORLD_CUP_COMPETITION_ID = 72;
 const PRICE_SCALE = 1000;
 const MONITOR_INTERVAL_MS = 60 * 1000; // re-check every 1 min whether window ended
+const HEARTBEAT_INTERVAL_MS = 20 * 1000;
+
+const counters = {
+  fixturesLoaded: 0,
+  eventsProcessed: 0,
+  oddsUpdatesProcessed: 0,
+  signalsGenerated: 0,
+  reconnectCount: 0,
+};
+
+let txlineStatus: "connected" | "reconnecting" | "offline" | "waiting" = "waiting";
+let workerStatus: "running" | "stopped" | "error" = "running";
+let currentState: "monitoring" | "waiting_for_kickoff" | "processing_live_match" = "monitoring";
+let activeFixtureId: string | null = null;
+let lastTxlineEventAt: string | null = null;
+
+const matchStates = new Map<string, MatchState>();
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -72,30 +96,107 @@ async function loadWorldCupFixtures() {
   const fixtures = await getFixturesSnapshot(WORLD_CUP_COMPETITION_ID);
 
   for (const f of fixtures) {
+    const fixtureId = String(f.FixtureId);
+    const status = f.GameState === 1 ? "live_or_upcoming" : "scheduled";
+    const kickoffAt = f.StartTime ? new Date(f.StartTime).toISOString() : null;
+    const homeTeam = f.Participant1 ?? "Participant 1";
+    const awayTeam = f.Participant2 ?? "Participant 2";
+
     await upsertFixture({
-      id: String(f.FixtureId),
-      home_team: f.Participant1,
-      away_team: f.Participant2,
-      status: f.GameState === 1 ? "live_or_upcoming" : "scheduled",
-      kickoff_at: f.StartTime ? new Date(f.StartTime).toISOString() : null,
+      id: fixtureId,
+      home_team: homeTeam,
+      away_team: awayTeam,
+      status,
+      kickoff_at: kickoffAt,
+    });
+    await insertMatch({
+      id: fixtureId,
+      home_team: homeTeam,
+      away_team: awayTeam,
+      status,
+      kickoff_at: kickoffAt,
+      is_demo: false,
+    });
+
+    matchStates.set(fixtureId, {
+      fixtureId,
+      match: `${homeTeam} vs ${awayTeam}`,
+      homeScore: 0,
+      awayScore: 0,
+      isDemo: false,
     });
   }
 
-  console.log(`[worker] loaded ${fixtures.length} World Cup fixtures`);
+  counters.fixturesLoaded = fixtures.length;
+  console.log(JSON.stringify({ level: "info", component: "worker", event: "fixtures_loaded", count: fixtures.length }));
 }
 
 async function handleOddsMessage(event: string, data: any) {
   if (event === "heartbeat") return;
 
+  counters.eventsProcessed++;
+  lastTxlineEventAt = new Date().toISOString();
   const ticks = normalizeOddsTicks(data);
 
   for (const tick of ticks) {
+    counters.oddsUpdatesProcessed++;
+    const match = matchStates.get(tick.fixtureId) ?? {
+      fixtureId: tick.fixtureId,
+      match: tick.fixtureId,
+      homeScore: 0,
+      awayScore: 0,
+      isDemo: false,
+    };
     await insertOddsTick({
       fixture_id: tick.fixtureId,
       market: tick.market,
       selection: tick.selection,
       price: tick.price,
     });
+    await insertOddsSnapshot({
+      fixture_id: tick.fixtureId,
+      match: match.match,
+      market: tick.market,
+      selection: tick.selection,
+      price: tick.price,
+      home_score: match.homeScore,
+      away_score: match.awayScore,
+      is_demo: false,
+    });
+
+    const marketSignal = detectMarketSignal({
+      fixtureId: tick.fixtureId,
+      match: match.match,
+      market: tick.market,
+      selection: tick.selection,
+      price: tick.price,
+      ts: Date.now(),
+      homeScore: match.homeScore,
+      awayScore: match.awayScore,
+      isDemo: false,
+    }, match);
+
+    if (marketSignal) {
+      const ai = await explainSignal(marketSignal);
+      await insertMarketSignal({
+        fixture_id: marketSignal.fixtureId,
+        match: marketSignal.match,
+        market: marketSignal.market,
+        selection: marketSignal.selection,
+        previous_odds: marketSignal.previousOdds,
+        current_odds: marketSignal.currentOdds,
+        movement_pct: marketSignal.movementPct,
+        direction: marketSignal.direction,
+        severity: marketSignal.severity,
+        confidence: marketSignal.confidence,
+        reason_code: marketSignal.reasonCode,
+        action: marketSignal.action,
+        explanation: ai.explanation,
+        ai_provider: ai.aiProvider,
+        is_demo: false,
+      });
+      counters.signalsGenerated++;
+    }
 
     const detection = checkForSharpMovement(
       tick.fixtureId,
@@ -188,6 +289,20 @@ async function handleGameFinalised(data: any) {
 async function handleScoreMessage(event: string, data: any) {
   if (event === "heartbeat") return;
 
+  counters.eventsProcessed++;
+  lastTxlineEventAt = new Date().toISOString();
+  const fixtureIdForState = data.FixtureId ? String(data.FixtureId) : null;
+  if (fixtureIdForState) {
+    const current = matchStates.get(fixtureIdForState);
+    if (current && data.Score) {
+      const homeScore = data.Score?.Participant1?.Total?.Goals ?? current.homeScore;
+      const awayScore = data.Score?.Participant2?.Total?.Goals ?? current.awayScore;
+      if (homeScore !== current.homeScore || awayScore !== current.awayScore) current.lastScoreChangeAt = Date.now();
+      current.homeScore = homeScore;
+      current.awayScore = awayScore;
+    }
+  }
+
   if (data.Action === "game_finalised" && data.Score) {
     await handleGameFinalised(data);
     return;
@@ -201,8 +316,32 @@ async function handleScoreMessage(event: string, data: any) {
   await insertScoreEvent(scoreEvent);
 }
 
+async function saveHeartbeat() {
+  const active = isAnyMatchActive();
+  currentState = active ? "processing_live_match" : "waiting_for_kickoff";
+  txlineStatus = active ? txlineStatus : (txlineStatus === "offline" ? "offline" : "waiting");
+  await upsertAgentState({
+    mode: "live",
+    worker_status: workerStatus,
+    txline_status: txlineStatus,
+    current_state: currentState,
+    fixtures_loaded: counters.fixturesLoaded,
+    events_processed: counters.eventsProcessed,
+    odds_updates_processed: counters.oddsUpdatesProcessed,
+    signals_generated: counters.signalsGenerated,
+    reconnect_count: counters.reconnectCount,
+    last_heartbeat_at: new Date().toISOString(),
+    last_txline_event_at: lastTxlineEventAt,
+    active_fixture_id: activeFixtureId,
+    notes: active ? "Active match. Processing live TxLINE odds and score feeds." : "No active match. Monitoring fixture windows.",
+  });
+  console.log(JSON.stringify({ level: "info", component: "worker", event: "heartbeat_saved", txlineStatus, currentState, activeMatch: active, fixturesLoaded: counters.fixturesLoaded, oddsUpdatesProcessed: counters.oddsUpdatesProcessed, signalsGenerated: counters.signalsGenerated }));
+}
+
 async function runActiveWindow() {
   const controller = new AbortController();
+  txlineStatus = "connected";
+  activeFixtureId = null;
 
   const monitor = setInterval(async () => {
     await refreshFixtureWindows().catch((err) =>
@@ -210,6 +349,8 @@ async function runActiveWindow() {
     );
     if (!isAnyMatchActive()) {
       console.log("[worker] match window ended, disconnecting streams...");
+      txlineStatus = "waiting";
+      activeFixtureId = null;
       controller.abort();
     }
   }, MONITOR_INTERVAL_MS);
@@ -227,6 +368,10 @@ async function runActiveWindow() {
         );
       }, controller.signal),
     ]);
+  } catch (err: any) {
+    counters.reconnectCount++;
+    txlineStatus = "reconnecting";
+    console.error("[worker] stream error:", err?.message ?? err);
   } finally {
     clearInterval(monitor);
   }
@@ -235,6 +380,10 @@ async function runActiveWindow() {
 async function main() {
   await loadWorldCupFixtures();
   await refreshFixtureWindows();
+  await saveHeartbeat();
+  setInterval(() => {
+    saveHeartbeat().catch((err) => console.error("[heartbeat] error:", err.message));
+  }, HEARTBEAT_INTERVAL_MS);
 
   console.log("[worker] scheduler started — autonomous mode");
 
@@ -252,12 +401,16 @@ async function main() {
   }
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
+  workerStatus = "error";
+  txlineStatus = "offline";
   console.error("[worker] fatal error:", err?.response?.data || err.message || err);
+  await upsertAgentState({ mode: "live", worker_status: "error", txline_status: "offline", notes: err?.message ?? "fatal worker error" }).catch(() => undefined);
   process.exit(1);
 });
 
 process.on("SIGINT", () => {
   console.log("\n[worker] shutting down gracefully...");
-  process.exit(0);
+  workerStatus = "stopped";
+  upsertAgentState({ mode: "live", worker_status: "stopped", txline_status: "offline", notes: "Worker stopped." }).finally(() => process.exit(0));
 });
