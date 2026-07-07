@@ -10,6 +10,7 @@
   --color-signal-green: #37D67A;
   --color-signal-amber: #F2A93B;
   --color-signal-coral: #FF5D5D;
+  --color-signal-blue: #4D8DFF;
 
   --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
@@ -19,4 +20,14 @@
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
+}
+* { box-sizing: border-box; }
+
+body {
+  min-height: 100vh;
+  font-family: var(--font-body);
+}
+
+::selection {
+  background: rgba(77, 141, 255, 0.28);
 }
