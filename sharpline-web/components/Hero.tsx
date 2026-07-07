@@ -1,4 +1,4 @@
-import { Activity, Radio, ShieldCheck, Target, TrendingUp } from "lucide-react";
+import { Activity, Radio, ShieldCheck, Target, TrendingUp, Timer } from "lucide-react";
 
 type Stats = {
   signalsToday: number;
@@ -6,13 +6,14 @@ type Stats = {
   accuracy: number | null;
 };
 
-export function Hero({ stats, isDemo }: { stats: Stats; isDemo: boolean }) {
+export function Hero({ stats, hasActiveMatch }: { stats: Stats; hasActiveMatch: boolean }) {
   const statusCards = [
-    { label: "Agent Status", value: "🟢 Running", detail: "Autonomous monitor active", icon: Activity, dot: "bg-signal-green" },
-    { label: "TxLINE", value: isDemo ? "Demo Feed" : "Connected", detail: isDemo ? "Simulated events" : "Live odds stream", icon: Radio, dot: isDemo ? "bg-signal-amber" : "bg-signal-green" },
-    { label: "Signals Today", value: String(stats.signalsToday || 18), detail: "Market moves detected", icon: TrendingUp, dot: "bg-signal-blue" },
-    { label: "High Confidence Alerts", value: String(stats.highConfidenceAlerts || 5), detail: "Priority opportunities", icon: Target, dot: "bg-signal-coral" },
-    { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "91.8%", detail: stats.accuracy !== null ? "Resolved signals" : "Demo benchmark", icon: ShieldCheck, dot: "bg-signal-green" },
+    { label: "Agent Status", value: "Running", detail: "Autonomous monitor active", icon: Activity, dot: "bg-signal-green" },
+    { label: "TxLINE", value: hasActiveMatch ? "Connected" : "Waiting", detail: hasActiveMatch ? "Monitoring live odds" : "Waiting for next match", icon: Radio, dot: hasActiveMatch ? "bg-signal-green" : "bg-signal-amber" },
+    { label: "Current State", value: hasActiveMatch ? "Monitoring live odds" : "Waiting for match", detail: "Live-first dashboard", icon: Timer, dot: hasActiveMatch ? "bg-signal-green" : "bg-signal-amber" },
+    { label: "Signals Today", value: String(stats.signalsToday), detail: "Live signals only", icon: TrendingUp, dot: "bg-signal-blue" },
+    { label: "High Confidence Alerts", value: String(stats.highConfidenceAlerts), detail: "Live alerts only", icon: Target, dot: "bg-signal-coral" },
+    { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "Pending", detail: "Live resolved signals only", icon: ShieldCheck, dot: "bg-signal-green" },
   ];
 
   return (
@@ -27,11 +28,11 @@ export function Hero({ stats, isDemo }: { stats: Stats; isDemo: boolean }) {
             </p>
           </div>
           <div className="rounded-full border border-border bg-surface px-4 py-2 text-xs text-text-muted">
-            {isDemo ? "DEMO MODE · Using simulated TxLINE events for demonstration." : "LIVE · Connected to TxLINE"}
+            {hasActiveMatch ? "LIVE · Connected to TxLINE" : "LIVE · Waiting for next TxLINE match"}
           </div>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 gap-3 md:grid-cols-5">
+        <div className="mt-10 grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
           {statusCards.map(({ label, value, detail, icon: Icon, dot }) => (
             <div key={label} className="rounded-2xl border border-border bg-surface p-4">
               <div className="flex items-center justify-between">

@@ -10,7 +10,8 @@ export function MatchHeader({ fixture }: { fixture: Fixture }) {
   if (!fixture) {
     return (
       <div className="rounded-xl border border-border bg-surface p-5">
-        <p className="text-sm text-text-muted">No tracked fixture yet.</p>
+        <h2 className="font-display text-2xl font-semibold text-text">Waiting for the next live match</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-text-muted">SharpLine is connected and monitoring TxLINE fixtures. Signals will appear automatically when odds move during an active match.</p>
       </div>
     );
   }
