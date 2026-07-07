@@ -32,7 +32,7 @@ export function AgentFlowLog({ signals }: { signals: Signal[] }) {
       <section className="rounded-2xl border border-border bg-surface p-6">
         <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Live Signal Feed</p>
         <div className="mt-5 space-y-3">
-          {signals.length === 0 && <p className="text-sm text-text-muted">Waiting for stored live or demo signals...</p>}
+          {signals.length === 0 && <p className="text-sm text-text-muted">Waiting for live TxLINE market movement...</p>}
           {signals.map((s, i) => (
             <div key={`${s.occurred_at}-${i}`} className="rounded-xl border border-border bg-bg/50 p-4">
               <div className="flex items-start justify-between gap-3">

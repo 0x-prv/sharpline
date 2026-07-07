@@ -6,23 +6,20 @@ SharpLine is a production-grade autonomous sports market intelligence platform f
 
 TxLINE live feed → TypeScript worker → deterministic signal engine → Groq explanation layer → Supabase → Next.js dashboard.
 
-## Strategy and deterministic rules
+## Production dashboard is live-first
 
-The signal engine evaluates odds ticks in a 10-minute rolling window. A signal fires when absolute movement is at least 15%.
+The deployed dashboard presents SharpLine as a live TxLINE autonomous agent. It defaults to `LIVE`, shows TxLINE as connected or waiting for the next match, and only queries production rows where `is_demo = false` for matches, odds snapshots, market signals, and live performance metrics.
 
-Reason codes:
-- `SHARP_ODDS_MOVEMENT`: baseline significant move.
-- `CONSENSUS_SHIFT`: 20%+ move after score change context.
-- `NO_SCORE_CHANGE_MOVE`: significant move while score is unchanged.
-- `POST_EVENT_MOVE`: move within three minutes of a goal/card-style impact event.
-- `MARKET_REVERSAL`: direction reverses inside the window and finishes 18%+ away from the original price.
-- `HIGH_CONFIDENCE_ANOMALY`: 30%+ move with no score change or recent impact event.
+When no live match or live signals are available, the dashboard shows a clean waiting state instead of backfilling with simulated rows. Demo data remains useful for local testing and judge fallback, but it is clearly excluded from the main live dashboard experience.
+
+## Deterministic signal engine
 
 Actions are deterministic: high-confidence anomalies become `ALERT`, strong reversals become `FADE`, no-score high-confidence moves become `FOLLOW`, high/critical moves become `ALERT`, and all remaining valid signals become `WATCH`. AI never decides.
 
 ## Supabase schema
 
-Run `supabase/schema.sql`. Core tables are:
+The hackathon schema lives in `supabase/schema.sql` and includes:
+
 - `matches`
 - `odds_snapshots`
 - `market_signals`
@@ -38,36 +35,30 @@ Copy `.env.example` to `.env` and fill in Supabase and TxLINE settings. `GROQ_AP
 ## TxLINE endpoints
 
 The worker consumes TxLINE snapshots and SSE streams through the existing client modules:
-- fixtures snapshot via `src/txline/client.ts`
-- odds stream via `/api/odds/stream`
-- scores stream via `/api/scores/stream`
+
+- `src/txline/client.ts`
+- `src/txline/stream.ts`
+- `src/worker.ts`
 
 ## Commands
 
 ```bash
-npm install
 npm run typecheck
 npm run worker
 npm run demo
+npm run build --prefix sharpline-web
 ```
 
-For the dashboard:
+`npm run demo` is retained for local testing and judge fallback when live matches are unavailable. It simulates realistic odds events, writes demo matches/snapshots/signals to Supabase, generates meaningful deterministic signals, and marks every demo row with `is_demo = true`.
 
-```bash
-cd sharpline-web
-npm install
-npm run build
-npm run dev
-```
+## Hackathon live-first flow
 
-## Demo mode
+1. Start the worker with live TxLINE credentials.
+2. Open the dashboard and confirm it shows `LIVE · Connected to TxLINE` or `LIVE · Waiting for next TxLINE match`.
+3. If no live match is active, use the waiting states to explain that SharpLine is connected and monitoring TxLINE fixtures.
+4. When live odds move, drill into latest signals: movement, reason code, action, confidence, and Groq/fallback explanation.
+5. Explain how `signal_resolutions` supports historical accuracy, confidence performance, and ROI-style analytics using live signals only.
 
-`npm run demo` is clearly labeled DEMO MODE. It simulates realistic odds events, writes demo matches/snapshots/signals to Supabase, generates at least five meaningful deterministic signals, and marks every row with `is_demo = true`.
+## Demo fallback
 
-## Hackathon demo flow
-
-1. Show the architecture and deterministic action policy.
-2. Run `npm run demo` when live matches are unavailable.
-3. Open the dashboard and point out the DEMO MODE label.
-4. Drill into latest signals: movement, reason code, action, confidence, and Groq/fallback explanation.
-5. Explain how `signal_resolutions` supports historical accuracy, confidence performance, and ROI-style analytics.
+Demo mode exists only as a local fallback via `npm run demo`. Demo rows are marked with `is_demo = true`, and the main production dashboard filters them out so simulated signals do not appear as live product activity.

@@ -25,6 +25,7 @@ async function getLatestMarketForFixture(fixtureId: string) {
       .select("market")
       .eq("fixture_id", fixtureId)
       .eq("market", "1X2_PARTICIPANT_RESULT")
+      .eq("is_demo", false)
       .order("received_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -35,6 +36,7 @@ async function getLatestMarketForFixture(fixtureId: string) {
       .from("odds_snapshots")
       .select("market")
       .eq("fixture_id", fixtureId)
+      .eq("is_demo", false)
       .order("received_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -55,6 +57,7 @@ export default async function DashboardPage() {
 
   const currentFixture =
     fixtures.find((f) => f.status === "live_or_upcoming") ?? fixtures[0] ?? null;
+  const hasActiveMatch = currentFixture?.status === "live_or_upcoming";
 
   let oddsTicks: Awaited<ReturnType<typeof getOddsHistory>> = [];
   if (currentFixture) {
@@ -67,7 +70,7 @@ export default async function DashboardPage() {
   return (
     <main>
       <Nav />
-      <Hero stats={stats} isDemo={latestSignal?.is_demo ?? currentFixture?.is_demo ?? false} />
+      <Hero stats={stats} hasActiveMatch={hasActiveMatch} />
 
       <div className="mx-auto max-w-6xl space-y-4 px-6 py-10">
         <MatchHeader fixture={currentFixture} />
