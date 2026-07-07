@@ -1,92 +1,45 @@
 import { supabaseServer } from "./supabase-server";
 
 export async function getFixtures() {
-  const { data, error } = await supabaseServer
-    .from("fixtures")
-    .select("*")
-    .order("kickoff_at", { ascending: true });
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabaseServer.from("matches").select("*").order("kickoff_at", { ascending: false });
+    return error ? [] : data ?? [];
+  } catch { return []; }
 }
 
 export async function getLatestSignal() {
-  const { data, error } = await supabaseServer
-    .from("signals")
-    .select("*")
-    .order("detected_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabaseServer.from("market_signals").select("*").order("occurred_at", { ascending: false }).limit(1).maybeSingle();
+    return error ? null : data ?? null;
+  } catch { return null; }
 }
 
 export async function getRecentSignals(limit = 10) {
-  const { data, error } = await supabaseServer
-    .from("signals")
-    .select("*")
-    .order("detected_at", { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabaseServer.from("market_signals").select("*").order("occurred_at", { ascending: false }).limit(limit);
+    return error ? [] : data ?? [];
+  } catch { return []; }
 }
 
 export async function getOddsHistory(fixtureId: string, market: string, limit = 60) {
-  const { data, error } = await supabaseServer
-    .from("odds_ticks")
-    .select("*")
-    .eq("fixture_id", fixtureId)
-    .eq("market", market)
-    .order("received_at", { ascending: true })
-    .limit(limit);
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabaseServer.from("odds_snapshots").select("*").eq("fixture_id", fixtureId).eq("market", market).order("received_at", { ascending: true }).limit(limit);
+    return error ? [] : data ?? [];
+  } catch { return []; }
 }
 
 export async function getStats() {
-  const { count: totalSignals } = await supabaseServer
-    .from("signals")
-    .select("*", { count: "exact", head: true });
-
-  const { count: explainedCount } = await supabaseServer
-    .from("signals")
-    .select("*", { count: "exact", head: true })
-    .eq("classification", "explained");
-
-  const { count: unexplainedCount } = await supabaseServer
-    .from("signals")
-    .select("*", { count: "exact", head: true })
-    .eq("classification", "unexplained");
-
-  const { count: wonCount } = await supabaseServer
-    .from("signals")
-    .select("*", { count: "exact", head: true })
-    .eq("outcome", "won");
-
-  const { count: resolvedCount } = await supabaseServer
-    .from("signals")
-    .select("*", { count: "exact", head: true })
-    .neq("outcome", "pending");
-
-  const accuracy =
-    resolvedCount && resolvedCount > 0
-      ? Math.round(((wonCount ?? 0) / resolvedCount) * 100)
-      : null;
-
-  return {
-    totalSignals: totalSignals ?? 0,
-    explainedCount: explainedCount ?? 0,
-    unexplainedCount: unexplainedCount ?? 0,
-    accuracy,
-  };
-}
-
-export async function getRecentScoreEvents(fixtureId: string, limit = 10) {
-  const { data, error } = await supabaseServer
-    .from("score_events")
-    .select("*")
-    .eq("fixture_id", fixtureId)
-    .order("received_at", { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return data;
+  try {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const { count: totalSignals } = await supabaseServer.from("market_signals").select("*", { count: "exact", head: true });
+    const { count: signalsToday } = await supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).gte("occurred_at", today.toISOString());
+    const { count: highConfidenceAlerts } = await supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).gte("confidence", 85);
+    const { data: resolutions } = await supabaseServer.from("signal_resolutions").select("outcome");
+    const resolved = resolutions ?? [];
+    const wins = resolved.filter((r) => r.outcome === "won").length;
+    const losses = resolved.filter((r) => r.outcome === "lost").length;
+    const accuracy = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null;
+    return { totalSignals: totalSignals ?? 0, signalsToday: signalsToday ?? 0, highConfidenceAlerts: highConfidenceAlerts ?? 0, accuracy };
+  } catch { return { totalSignals: 0, signalsToday: 0, highConfidenceAlerts: 0, accuracy: null }; }
 }
