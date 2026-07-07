@@ -43,3 +43,8 @@ export async function getStats() {
     return { totalSignals: totalSignals ?? 0, signalsToday: signalsToday ?? 0, highConfidenceAlerts: highConfidenceAlerts ?? 0, accuracy, correctSignals: wins, incorrectSignals: losses, highConfidenceAccuracy: accuracy };
   } catch { return { totalSignals: 0, signalsToday: 0, highConfidenceAlerts: 0, accuracy: null, correctSignals: 0, incorrectSignals: 0, highConfidenceAccuracy: null }; }
 }
+
+
+export async function getOddsHistoryForLatestSignal(signal: { fixture_id: string; market: string }, limit = 60) {
+  return getOddsHistory(signal.fixture_id, signal.market, limit);
+}

@@ -13,10 +13,10 @@ const FALLBACK_EVENTS = ["Worker started", "Loaded today’s fixtures", "Connect
 
 type Signal = { market: string; selection: string; previous_odds: number; current_odds: number; movement_pct: number; reason_code: string; action: string; confidence: number; occurred_at: string; is_demo: boolean };
 
-export function AgentFlowLog({ signals }: { signals: Signal[] }) {
+export function AgentFlowLog({ signals, mode = "full" }: { signals: Signal[]; mode?: "full" | "activity" | "timeline" }) {
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-      <section className="rounded-2xl border border-border bg-surface p-6">
+    <div className={mode === "activity" ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]"}>
+      {mode !== "activity" && <section className="rounded-2xl border border-border bg-surface p-6">
         <p className="text-xs uppercase tracking-[0.2em] text-text-muted">How SharpLine Works</p>
         <div className="mt-5 space-y-3">
           {PROCESS_STEPS.map(({ title, body, icon: Icon }, index) => (
@@ -32,10 +32,10 @@ export function AgentFlowLog({ signals }: { signals: Signal[] }) {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       <section className="rounded-2xl border border-border bg-surface p-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-text-muted">System Activity</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-text-muted">{mode === "timeline" ? "Signal Timeline" : "System Activity"}</p>
         <div className="mt-5 space-y-3">
           {signals.length === 0 && FALLBACK_EVENTS.map((event, index) => (
             <div key={event} className="flex items-center justify-between rounded-xl border border-border bg-bg/50 p-4">
