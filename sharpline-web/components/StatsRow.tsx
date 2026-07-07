@@ -1,10 +1,10 @@
 import { Award, CheckCircle2, Target, TrendingUp, XCircle } from "lucide-react";
 
-type Stats = { totalSignals: number; signalsToday: number; highConfidenceAlerts: number; accuracy: number | null; correctSignals?: number; incorrectSignals?: number; highConfidenceAccuracy?: number | null };
+type Stats = { totalSignals: number | null; signalsToday: number | null; highConfidenceAlerts: number | null; accuracy: number | null; correctSignals?: number | null; incorrectSignals?: number | null; highConfidenceAccuracy?: number | null };
 
 export function StatsRow({ stats }: { stats: Stats }) {
   const items = [
-    { label: "Signals Generated", value: stats.totalSignals > 0 ? stats.totalSignals.toString() : "No live signals yet", trend: "Historical tracking", icon: TrendingUp },
+    { label: "Signals Generated", value: stats.totalSignals === null ? "Not reported yet" : stats.totalSignals > 0 ? stats.totalSignals.toString() : "No live signals yet", trend: "Historical tracking", icon: TrendingUp },
     { label: "Correct Signals", value: (stats.correctSignals ?? 0) > 0 ? String(stats.correctSignals) : "Waiting for first resolved signal", trend: "Resolution tracking", icon: CheckCircle2 },
     { label: "Incorrect Signals", value: (stats.incorrectSignals ?? 0) > 0 ? String(stats.incorrectSignals) : "Waiting for first resolved signal", trend: "Resolution tracking", icon: XCircle },
     { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "Waiting for first resolved signal", trend: "Live only", icon: Target },

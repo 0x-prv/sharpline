@@ -4,9 +4,9 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { actionTone, explainAction, formatMarketSelection } from "./copy";
 
 type Stats = {
-  totalSignals: number;
-  correctSignals?: number;
-  incorrectSignals?: number;
+  totalSignals: number | null;
+  correctSignals?: number | null;
+  incorrectSignals?: number | null;
   accuracy: number | null;
   highConfidenceAccuracy?: number | null;
 };

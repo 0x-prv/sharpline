@@ -1,25 +1,38 @@
 import { supabaseServer } from "./supabase-server";
 
-export async function getFixtures() {
+export async function getAgentState() {
+  try {
+    const { data, error } = await supabaseServer.from("agent_state").select("*").eq("id", "live").eq("mode", "live").maybeSingle();
+    return error ? null : data ?? null;
+  } catch { return null; }
+}
+
+export async function getLiveFixtures() {
   try {
     const { data, error } = await supabaseServer.from("matches").select("*").eq("is_demo", false).order("kickoff_at", { ascending: false });
     return error ? [] : data ?? [];
   } catch { return []; }
 }
 
-export async function getLatestSignal() {
+export const getFixtures = getLiveFixtures;
+
+export async function getLatestLiveSignal() {
   try {
     const { data, error } = await supabaseServer.from("market_signals").select("*").eq("is_demo", false).order("occurred_at", { ascending: false }).limit(1).maybeSingle();
     return error ? null : data ?? null;
   } catch { return null; }
 }
 
-export async function getRecentSignals(limit = 10) {
+export const getLatestSignal = getLatestLiveSignal;
+
+export async function getRecentLiveSignals(limit = 10) {
   try {
     const { data, error } = await supabaseServer.from("market_signals").select("*").eq("is_demo", false).order("occurred_at", { ascending: false }).limit(limit);
     return error ? [] : data ?? [];
   } catch { return []; }
 }
+
+export const getRecentSignals = getRecentLiveSignals;
 
 export async function getOddsHistory(fixtureId: string, market: string, limit = 60) {
   try {
@@ -28,7 +41,7 @@ export async function getOddsHistory(fixtureId: string, market: string, limit = 
   } catch { return []; }
 }
 
-export async function getStats() {
+export async function getLiveSignalStats() {
   try {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
@@ -40,10 +53,12 @@ export async function getStats() {
     const wins = resolved.filter((r) => r.outcome === "won").length;
     const losses = resolved.filter((r) => r.outcome === "lost").length;
     const accuracy = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null;
-    return { totalSignals: totalSignals ?? 0, signalsToday: signalsToday ?? 0, highConfidenceAlerts: highConfidenceAlerts ?? 0, accuracy, correctSignals: wins, incorrectSignals: losses, highConfidenceAccuracy: accuracy };
-  } catch { return { totalSignals: 0, signalsToday: 0, highConfidenceAlerts: 0, accuracy: null, correctSignals: 0, incorrectSignals: 0, highConfidenceAccuracy: null }; }
+    return { totalSignals: totalSignals ?? null, signalsToday: signalsToday ?? null, highConfidenceAlerts: highConfidenceAlerts ?? null, accuracy, correctSignals: wins, incorrectSignals: losses, highConfidenceAccuracy: accuracy };
+  } catch { return { totalSignals: null, signalsToday: null, highConfidenceAlerts: null, accuracy: null, correctSignals: null, incorrectSignals: null, highConfidenceAccuracy: null }; }
 }
 
+export const getStats = getLiveSignalStats;
+export const getAnalytics = getLiveSignalStats;
 
 export async function getOddsHistoryForLatestSignal(signal: { fixture_id: string; market: string }, limit = 60) {
   return getOddsHistory(signal.fixture_id, signal.market, limit);

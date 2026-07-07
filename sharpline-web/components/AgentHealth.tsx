@@ -1,19 +1,22 @@
 import { Activity, Clock, Database, Radio, RotateCcw, Server } from "lucide-react";
 
-type AgentHealthProps = {
-  fixtureCount: number;
-  eventsProcessed: number;
-  lastUpdate?: Date;
+type AgentState = {
+  worker_status?: string | null;
+  txline_status?: string | null;
+  fixtures_loaded?: number | null;
+  events_processed?: number | null;
+  reconnect_count?: number | null;
+  last_heartbeat_at?: string | null;
 };
 
-export function AgentHealth({ fixtureCount, eventsProcessed, lastUpdate = new Date() }: AgentHealthProps) {
+export function AgentHealth({ agentState }: { agentState: AgentState | null }) {
   const items = [
-    { label: "Worker", value: "Running", icon: Server },
-    { label: "Connection", value: "Healthy", icon: Radio },
-    { label: "Fixtures Loaded", value: String(fixtureCount), icon: Database },
-    { label: "Last Update", value: isRecent(lastUpdate) ? "Just now" : lastUpdate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }), icon: Clock },
-    { label: "Events Processed", value: eventsProcessed > 0 ? String(eventsProcessed) : "No live events yet", icon: Activity },
-    { label: "Reconnects", value: "0", icon: RotateCcw },
+    { label: "Worker", value: title(agentState?.worker_status) ?? "Not reported yet", icon: Server },
+    { label: "Connection", value: title(agentState?.txline_status) ?? "Not reported yet", icon: Radio },
+    { label: "Fixtures Loaded", value: formatCount(agentState?.fixtures_loaded), icon: Database },
+    { label: "Last Heartbeat", value: relativeTime(agentState?.last_heartbeat_at), icon: Clock },
+    { label: "Events Processed", value: formatCount(agentState?.events_processed), icon: Activity },
+    { label: "Reconnects", value: formatCount(agentState?.reconnect_count), icon: RotateCcw },
   ];
 
   return (
@@ -32,6 +35,13 @@ export function AgentHealth({ fixtureCount, eventsProcessed, lastUpdate = new Da
   );
 }
 
-function isRecent(date: Date) {
-  return Date.now() - date.getTime() < 60_000;
+function formatCount(value: number | null | undefined) { return value === null || value === undefined ? "Not reported yet" : String(value); }
+function title(value: string | null | undefined) { return value ? value.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()) : null; }
+function relativeTime(value: string | null | undefined) {
+  if (!value) return "Not reported yet";
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.round(minutes / 60)}h ago`;
 }

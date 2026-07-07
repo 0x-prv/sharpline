@@ -1,5 +1,32 @@
 import { supabase } from "./supabase.js";
 
+export type AgentStateUpdate = {
+  mode?: "live" | "demo";
+  txline_status?: "connected" | "reconnecting" | "offline" | "waiting";
+  worker_status?: "running" | "stopped" | "error";
+  current_state?: "monitoring" | "waiting_for_kickoff" | "processing_live_match";
+  fixtures_loaded?: number;
+  events_processed?: number;
+  odds_updates_processed?: number;
+  signals_generated?: number;
+  reconnect_count?: number;
+  last_heartbeat_at?: string | null;
+  last_txline_event_at?: string | null;
+  active_fixture_id?: string | null;
+  notes?: string | null;
+};
+
+export async function upsertAgentState(update: AgentStateUpdate) {
+  const payload = {
+    id: "live",
+    mode: update.mode ?? "live",
+    updated_at: new Date().toISOString(),
+    ...update,
+  };
+  const { error } = await supabase.from("agent_state").upsert(payload, { onConflict: "id" });
+  if (error) console.error("[db] upsertAgentState error:", error.message);
+}
+
 export async function upsertFixture(fixture: {
   id: string;
   home_team: string;
@@ -143,6 +170,7 @@ export async function insertMatch(match: {
     status: match.status ?? "scheduled",
     kickoff_at: match.kickoff_at ?? null,
     is_demo: match.is_demo ?? false,
+    updated_at: new Date().toISOString(),
   });
   if (error) console.error("[db] insertMatch error:", error.message);
 }
