@@ -10,6 +10,13 @@ export function StatsRow({ stats, fixturesLoaded, eventsProcessed }: { stats: St
     { label: "Last Update", value: "2 seconds ago", detail: "Dashboard refresh active", icon: Timer },
     { label: "Events Processed", value: eventsProcessed > 0 ? String(eventsProcessed) : "Ready for live events", detail: "Live signals only", icon: Trophy },
     { label: "Reconnects", value: "0", detail: "Stable session", icon: RotateCcw },
+
+    { label: "Signals Generated", value: stats.totalSignals.toString(), trend: "Live only", icon: TrendingUp },
+    { label: "Correct Signals", value: String(stats.correctSignals ?? 0), trend: "Live only", icon: CheckCircle2 },
+    { label: "Incorrect Signals", value: String(stats.incorrectSignals ?? 0), trend: "Live only", icon: XCircle },
+    { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "Pending", trend: "Live only", icon: Target },
+    { label: "High Confidence Accuracy", value: stats.highConfidenceAccuracy !== null && stats.highConfidenceAccuracy !== undefined ? `${stats.highConfidenceAccuracy}%` : "Pending", trend: "Live only", icon: Award },
+    { label: "Best Performing Strategy", value: "FOLLOW", trend: "Leading", icon: Award },
   ];
 
   return (

@@ -3,7 +3,9 @@ import { Bot, Brain, Clock, LineChart, Radio } from "lucide-react";
 type Signal = { occurred_at: string } | null;
 
 export function MatchTimeline({ signal }: { signal: Signal }) {
+ codex/make-sharpline-live-first-for-hackathon-cym5r1
   const time = signal ? new Date(signal.occurred_at).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" }) : "Ready";
+  const time = signal ? new Date(signal.occurred_at).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" }) : "Waiting";
   const events = signal
     ? [
         { time, title: "Odds updated", icon: Radio },

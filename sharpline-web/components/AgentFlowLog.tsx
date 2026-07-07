@@ -48,6 +48,7 @@ export function AgentFlowLog({ signals }: { signals: Signal[] }) {
         </div>
       </section>
 
+ codex/make-sharpline-live-first-for-hackathon-cym5r1
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[0.85fr_1.15fr]">
         <section className="rounded-2xl border border-border bg-surface p-6">
           <div className="flex items-center gap-3">
@@ -76,6 +77,19 @@ export function AgentFlowLog({ signals }: { signals: Signal[] }) {
                 <div className="flex items-center gap-3">
                   <Clock className="h-4 w-4 text-signal-green" />
                   <p className="font-display text-lg font-semibold text-text">Connected and listening</p>
+
+      <section className="rounded-2xl border border-border bg-surface p-6">
+        <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Live Signal Feed</p>
+        <div className="mt-5 space-y-3">
+          {signals.length === 0 && <p className="text-sm text-text-muted">Waiting for live TxLINE market movement...</p>}
+          {signals.map((s, i) => (
+            <div key={`${s.occurred_at}-${i}`} className="rounded-xl border border-border bg-bg/50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs text-text-muted">{new Date(s.occurred_at).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })}</p>
+                  <p className="mt-1 text-sm text-text">{formatMarketSelection(s.market, s.selection)} odds {Number(s.movement_pct) < 0 ? "dropped" : "moved"}</p>
+                  <p className="mt-1 font-display text-lg text-text">{Number(s.previous_odds).toFixed(2)} → {Number(s.current_odds).toFixed(2)} <span className="text-sm text-signal-coral">({Number(s.movement_pct) > 0 ? "+" : ""}{Number(s.movement_pct).toFixed(1)}%)</span></p>
+                  <p className="mt-2 text-xs text-text-muted">{explainReason(s.reason_code)}</p>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-text-muted">No live odds movement has crossed the signal threshold yet. SharpLine will publish the first alert here automatically.</p>
               </div>

@@ -8,6 +8,7 @@ type Fixture = {
   kickoff_at: string | null;
 } | null;
 
+ codex/make-sharpline-live-first-for-hackathon-cym5r1
 const STATUS_ITEMS = [
   "Worker Running",
   "TxLINE Connected",
@@ -15,6 +16,15 @@ const STATUS_ITEMS = [
   "Waiting for Kickoff",
   "Signal Engine Ready",
 ];
+export function MatchHeader({ fixture }: { fixture: Fixture }) {
+  if (!fixture) {
+    return (
+      <div className="rounded-xl border border-border bg-surface p-5">
+        <h2 className="font-display text-2xl font-semibold text-text">Waiting for the next live match</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-text-muted">SharpLine is connected and monitoring TxLINE fixtures. Signals will appear automatically when odds move during an active match.</p>
+      </div>
+    );
+  }
 
 export function MatchHeader({ fixture }: { fixture: Fixture }) {
   const kickoff = fixture?.kickoff_at
