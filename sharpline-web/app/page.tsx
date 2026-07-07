@@ -14,31 +14,34 @@ import {
 } from "../lib/queries";
 import { supabaseServer } from "../lib/supabase-server";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 15;
 
 async function getLatestMarketForFixture(fixtureId: string) {
-  // Prefer the main 1X2 result market (no half/line suffix) as the default chart view
-  const { data: mainMarket } = await supabaseServer
-    .from("odds_ticks")
-    .select("market")
-    .eq("fixture_id", fixtureId)
-    .eq("market", "1X2_PARTICIPANT_RESULT")
-    .order("received_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  try {
+    const { data: mainMarket } = await supabaseServer
+      .from("odds_snapshots")
+      .select("market")
+      .eq("fixture_id", fixtureId)
+      .eq("market", "1X2_PARTICIPANT_RESULT")
+      .order("received_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (mainMarket?.market) return mainMarket.market;
+    if (mainMarket?.market) return mainMarket.market;
 
-  // Fallback: any market, most recent tick
-  const { data: anyMarket } = await supabaseServer
-    .from("odds_ticks")
-    .select("market")
-    .eq("fixture_id", fixtureId)
-    .order("received_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    const { data: anyMarket } = await supabaseServer
+      .from("odds_snapshots")
+      .select("market")
+      .eq("fixture_id", fixtureId)
+      .order("received_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  return anyMarket?.market ?? null;
+    return anyMarket?.market ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export default async function DashboardPage() {

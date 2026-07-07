@@ -128,3 +128,67 @@ export async function saveAnchorTx(signalId: string, signature: string) {
   if (error) console.error("[db] saveAnchorTx error:", error.message);
   else console.log(`[db] signal ${signalId} anchored: ${signature}`);
 }
+export async function insertMatch(match: {
+  id: string;
+  home_team: string;
+  away_team: string;
+  status?: string;
+  kickoff_at?: string | null;
+  is_demo?: boolean;
+}) {
+  const { error } = await supabase.from("matches").upsert({
+    id: match.id,
+    home_team: match.home_team,
+    away_team: match.away_team,
+    status: match.status ?? "scheduled",
+    kickoff_at: match.kickoff_at ?? null,
+    is_demo: match.is_demo ?? false,
+  });
+  if (error) console.error("[db] insertMatch error:", error.message);
+}
+
+export async function insertOddsSnapshot(snapshot: {
+  fixture_id: string;
+  match: string;
+  market: string;
+  selection: string;
+  price: number;
+  home_score?: number;
+  away_score?: number;
+  is_demo?: boolean;
+}) {
+  const { error } = await supabase.from("odds_snapshots").insert(snapshot);
+  if (error) console.error("[db] insertOddsSnapshot error:", error.message);
+}
+
+export async function insertMarketSignal(signal: {
+  fixture_id: string;
+  match: string;
+  market: string;
+  selection: string;
+  previous_odds: number;
+  current_odds: number;
+  movement_pct: number;
+  direction: string;
+  severity: string;
+  confidence: number;
+  reason_code: string;
+  action: string;
+  explanation: string;
+  ai_provider: string;
+  is_demo?: boolean;
+}) {
+  const { error } = await supabase.from("market_signals").insert(signal);
+  if (error) console.error("[db] insertMarketSignal error:", error.message);
+  else console.log(JSON.stringify({ level: "info", component: "signal", ...signal }));
+}
+
+export async function insertAgentRun(run: {
+  mode: "live" | "demo";
+  status: "started" | "finished" | "failed";
+  message: string;
+  metrics?: Record<string, unknown>;
+}) {
+  const { error } = await supabase.from("agent_runs").insert(run);
+  if (error) console.error("[db] insertAgentRun error:", error.message);
+}

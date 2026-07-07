@@ -7,7 +7,9 @@
   "scripts": {
     "worker": "tsx src/worker.ts",
     "dev": "tsx watch src/worker.ts",
-    "activate": "tsx src/txline/activate-cli.ts"
+    "activate": "tsx src/txline/activate-cli.ts",
+    "demo": "tsx src/demo.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

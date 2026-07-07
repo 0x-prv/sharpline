@@ -11,9 +11,9 @@
   --color-signal-amber: #F2A93B;
   --color-signal-coral: #FF5D5D;
 
-  --font-display: var(--font-space-grotesk);
-  --font-body: var(--font-inter);
-  --font-data: var(--font-jetbrains-mono);
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 }
 
 body {
