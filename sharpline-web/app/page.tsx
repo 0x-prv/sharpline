@@ -5,6 +5,7 @@ import { SignalCard } from "../components/SignalCard";
 import { AgentFlowLog } from "../components/AgentFlowLog";
 import { StatsRow } from "../components/StatsRow";
 import { OddsChart } from "../components/OddsChart";
+import { MatchTimeline } from "../components/MatchTimeline";
 import {
   getFixtures,
   getLatestSignal,
@@ -66,12 +67,12 @@ export default async function DashboardPage() {
   return (
     <main>
       <Nav />
-      <Hero />
+      <Hero stats={stats} isDemo={latestSignal?.is_demo ?? currentFixture?.is_demo ?? false} />
 
       <div className="mx-auto max-w-6xl space-y-4 px-6 py-10">
         <MatchHeader fixture={currentFixture} />
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_0.85fr]">
           <OddsChart ticks={oddsTicks} />
           <SignalCard signal={latestSignal} />
         </div>
@@ -79,6 +80,8 @@ export default async function DashboardPage() {
         <AgentFlowLog signals={recentSignals} />
 
         <StatsRow stats={stats} />
+
+        <MatchTimeline signal={latestSignal} />
       </div>
     </main>
   );

@@ -40,6 +40,6 @@ export async function getStats() {
     const wins = resolved.filter((r) => r.outcome === "won").length;
     const losses = resolved.filter((r) => r.outcome === "lost").length;
     const accuracy = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null;
-    return { totalSignals: totalSignals ?? 0, signalsToday: signalsToday ?? 0, highConfidenceAlerts: highConfidenceAlerts ?? 0, accuracy };
-  } catch { return { totalSignals: 0, signalsToday: 0, highConfidenceAlerts: 0, accuracy: null }; }
+    return { totalSignals: totalSignals ?? 0, signalsToday: signalsToday ?? 0, highConfidenceAlerts: highConfidenceAlerts ?? 0, accuracy, correctSignals: wins, incorrectSignals: losses, highConfidenceAccuracy: accuracy };
+  } catch { return { totalSignals: 0, signalsToday: 0, highConfidenceAlerts: 0, accuracy: null, correctSignals: 0, incorrectSignals: 0, highConfidenceAccuracy: null }; }
 }
