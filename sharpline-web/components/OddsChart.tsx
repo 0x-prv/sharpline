@@ -7,7 +7,7 @@ type Tick = { price: number; received_at: string; selection: string; market: str
 
 export function OddsChart({ ticks }: { ticks: Tick[] }) {
   if (ticks.length === 0) {
-    return <div className="flex h-[360px] items-center justify-center rounded-2xl border border-border bg-surface"><p className="text-sm text-text-muted">No odds history yet.</p></div>;
+    return <div className="flex h-[360px] items-center justify-center rounded-2xl border border-border bg-surface"><p className="text-sm text-text-muted">Connected and listening. Signals will appear automatically once TxLINE odds begin moving during an active match.</p></div>;
   }
 
   const first = ticks[0];

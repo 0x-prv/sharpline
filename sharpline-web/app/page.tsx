@@ -4,6 +4,8 @@ import { MatchHeader } from "../components/MatchHeader";
 import { SignalCard } from "../components/SignalCard";
 import { AgentFlowLog } from "../components/AgentFlowLog";
 import { StatsRow } from "../components/StatsRow";
+import { AgentStatus } from "../components/AgentStatus";
+import { AgentHealth } from "../components/AgentHealth";
 import { OddsChart } from "../components/OddsChart";
 import { MatchTimeline } from "../components/MatchTimeline";
 import {
@@ -75,6 +77,8 @@ export default async function DashboardPage() {
       <div className="mx-auto max-w-6xl space-y-4 px-6 py-10">
         <MatchHeader fixture={currentFixture} />
 
+        <AgentStatus />
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_0.85fr]">
           <OddsChart ticks={oddsTicks} />
           <SignalCard signal={latestSignal} />
@@ -83,6 +87,8 @@ export default async function DashboardPage() {
         <AgentFlowLog signals={recentSignals} />
 
         <StatsRow stats={stats} />
+
+        <AgentHealth fixtureCount={fixtures.length} eventsProcessed={recentSignals.length} />
 
         <MatchTimeline signal={latestSignal} />
       </div>

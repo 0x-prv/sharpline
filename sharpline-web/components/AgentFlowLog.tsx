@@ -1,13 +1,15 @@
 import { Brain, Database, Radio, ShieldCheck, TrendingUp } from "lucide-react";
 import { actionTone, explainAction, explainReason, formatMarketSelection } from "./copy";
 
-const PIPELINE_STEPS = [
-  { title: "Live TxLINE Data", icon: Radio },
-  { title: "SharpLine detects unusual movement", icon: TrendingUp },
-  { title: "Deterministic rules classify the signal", icon: ShieldCheck },
-  { title: "AI explains the reason", icon: Brain },
-  { title: "Signal stored for historical accuracy", icon: Database },
+const PROCESS_STEPS = [
+  { title: "Monitor", body: "Continuously listens to TxLINE live odds.", icon: Radio },
+  { title: "Detect", body: "Finds unusual market movement using deterministic rules.", icon: TrendingUp },
+  { title: "Explain", body: "Generates an AI explanation for every signal.", icon: Brain },
+  { title: "Store", body: "Persists every signal for historical analysis.", icon: Database },
+  { title: "Measure", body: "Tracks long-term accuracy after matches finish.", icon: ShieldCheck },
 ];
+
+const FALLBACK_EVENTS = ["Worker started", "Loaded today’s fixtures", "Connected to TxLINE", "Waiting for first live kickoff"];
 
 type Signal = { market: string; selection: string; previous_odds: number; current_odds: number; movement_pct: number; reason_code: string; action: string; confidence: number; occurred_at: string; is_demo: boolean };
 
@@ -15,24 +17,35 @@ export function AgentFlowLog({ signals }: { signals: Signal[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
       <section className="rounded-2xl border border-border bg-surface p-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Autonomous Pipeline</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-text-muted">How SharpLine Works</p>
         <div className="mt-5 space-y-3">
-          {PIPELINE_STEPS.map(({ title, icon: Icon }, index) => (
+          {PROCESS_STEPS.map(({ title, body, icon: Icon }, index) => (
             <div key={title} className="flex gap-3">
               <div className="flex flex-col items-center">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-bg"><Icon className="h-4 w-4 text-signal-blue" /></div>
-                {index < PIPELINE_STEPS.length - 1 && <div className="h-5 w-px bg-border" />}
+                {index < PROCESS_STEPS.length - 1 && <div className="h-7 w-px bg-border" />}
               </div>
-              <p className="pt-2 text-sm text-text">{title}</p>
+              <div className="pt-1">
+                <p className="text-sm font-medium text-text">{index + 1}. {title}</p>
+                <p className="mt-1 text-xs leading-5 text-text-muted">{body}</p>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
       <section className="rounded-2xl border border-border bg-surface p-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Live Signal Feed</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-text-muted">System Activity</p>
         <div className="mt-5 space-y-3">
-          {signals.length === 0 && <p className="text-sm text-text-muted">Waiting for live TxLINE market movement...</p>}
+          {signals.length === 0 && FALLBACK_EVENTS.map((event, index) => (
+            <div key={event} className="flex items-center justify-between rounded-xl border border-border bg-bg/50 p-4">
+              <div>
+                <p className="text-sm text-text">{event}</p>
+                <p className="mt-1 text-xs text-text-muted">{index === FALLBACK_EVENTS.length - 1 ? "Signals will appear automatically once TxLINE odds begin moving during an active match." : "Connected and listening"}</p>
+              </div>
+              <span className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-text-muted">{index === 0 ? "Started" : "Ready"}</span>
+            </div>
+          ))}
           {signals.map((s, i) => (
             <div key={`${s.occurred_at}-${i}`} className="rounded-xl border border-border bg-bg/50 p-4">
               <div className="flex items-start justify-between gap-3">
