@@ -1,0 +1,29 @@
+{
+  "name": "sharpline",
+  "version": "0.1.0",
+  "description": "Sharpline — an autonomous agent that detects, explains, and tracks sharp odds movements on TxLINE World Cup 2026 feeds.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "worker": "tsx src/worker.ts",
+    "dev": "tsx watch src/worker.ts",
+    "activate": "tsx src/txline/activate-cli.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.95.3",
+    "@supabase/supabase-js": "^2.45.4",
+    "axios": "^1.7.7",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.5",
+    "eventsource": "^4.1.0",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/eventsource": "^1.1.15",
+    "@types/node": "^20.14.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.5.4"
+  }
+}
