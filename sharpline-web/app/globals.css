@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0B0D10;
+  --color-surface: #14171B;
+  --color-surface-hover: #1B1F24;
+  --color-border: #22262B;
+  --color-text: #E7E9EA;
+  --color-text-muted: #8A9099;
+  --color-signal-green: #37D67A;
+  --color-signal-amber: #F2A93B;
+  --color-signal-coral: #FF5D5D;
+
+  --font-display: var(--font-space-grotesk);
+  --font-body: var(--font-inter);
+  --font-data: var(--font-jetbrains-mono);
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
