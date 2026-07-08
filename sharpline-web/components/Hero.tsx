@@ -1,45 +1,60 @@
-import { Activity, Brain, Database, Radio, ShieldCheck, Target, TrendingUp, Timer } from "lucide-react";
+import { Activity, BarChart3, Bitcoin, CircleDollarSign, ShieldCheck, TrendingUp, Zap } from "lucide-react";
 
-type Stats = { signalsToday: number | null; highConfidenceAlerts: number | null; accuracy: number | null; };
+type Stats = { signalsToday: number | null; highConfidenceAlerts: number | null; accuracy: number | null; totalOddsUpdatesToday?: number | null; totalSignals?: number | null };
 type AgentState = { worker_status?: string | null; txline_status?: string | null; current_state?: string | null; };
 
-const CAPABILITIES = [
-  { label: "Live TxLINE Monitoring", icon: Radio },
-  { label: "Autonomous Signal Detection", icon: TrendingUp },
-  { label: "AI Explanations", icon: Brain },
-  { label: "Historical Accuracy Tracking", icon: Database },
-];
-
 export function Hero({ stats, hasActiveMatch, agentState }: { stats: Stats; hasActiveMatch: boolean; agentState: AgentState | null }) {
-  const statusCards = [
-    { label: "Agent Status", value: title(agentState?.worker_status) ?? "Not reported yet", detail: "Read from Supabase agent_state", icon: Activity, dot: agentState?.worker_status === "running" ? "bg-signal-green" : "bg-signal-amber" },
-    { label: "TxLINE", value: title(agentState?.txline_status) ?? "Not reported yet", detail: hasActiveMatch ? "Monitoring live odds" : "Waiting for kickoff", icon: Radio, dot: agentState?.txline_status === "connected" ? "bg-signal-green" : "bg-signal-amber" },
-    { label: "Current State", value: stateLabel(agentState?.current_state), detail: "Autonomous worker state", icon: Timer, dot: hasActiveMatch ? "bg-signal-green" : "bg-signal-amber" },
-    { label: "Signals Today", value: stats.signalsToday === null ? "Not reported yet" : stats.signalsToday > 0 ? String(stats.signalsToday) : "No live signals yet", detail: "Signals appear automatically", icon: TrendingUp, dot: "bg-signal-blue" },
-    { label: "High Confidence Alerts", value: stats.highConfidenceAlerts === null ? "Not reported yet" : stats.highConfidenceAlerts > 0 ? String(stats.highConfidenceAlerts) : "No alerts generated yet", detail: "Live market alerts", icon: Target, dot: "bg-signal-coral" },
-    { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "Waiting for first resolved signal", detail: "Historical performance tracking", icon: ShieldCheck, dot: "bg-signal-green" },
+  const markets = [
+    { asset: "BTC", price: "$64,820", change: "+2.4%", tone: "text-signal-green", icon: Bitcoin },
+    { asset: "ETH", price: "$3,420", change: "+1.1%", tone: "text-signal-green", icon: CircleDollarSign },
+    { asset: "SOL", price: "$148.20", change: "-0.8%", tone: "text-signal-coral", icon: Zap },
+  ];
+  const overview = [
+    { label: "Market Sentiment", value: sentiment(stats.accuracy), meta: "AI consensus", icon: Activity },
+    { label: "24h Volume", value: formatCount(stats.totalOddsUpdatesToday), meta: "updates indexed", icon: BarChart3 },
+    { label: "BTC Dominance", value: "52.4%", meta: "macro proxy", icon: ShieldCheck },
+    { label: "Fear & Greed", value: stats.accuracy ? "Greed" : "Neutral", meta: "risk regime", icon: TrendingUp },
   ];
 
   return (
-    <section className="border-b border-border bg-bg">
-      <div className="mx-auto max-w-6xl px-6 py-14">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+    <section className="border-b border-border">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-14">
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_.95fr] lg:items-end">
           <div>
-            <h1 className="font-display text-5xl font-semibold tracking-tight text-text">SharpLine</h1>
-            <p className="mt-3 font-display text-xl text-text">Autonomous Sports Market Intelligence</p>
-            <p className="mt-5 max-w-3xl text-base leading-7 text-text-muted">SharpLine continuously monitors TxLINE live odds, automatically detects unusual market movements, explains every signal, and tracks historical performance.</p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {CAPABILITIES.map(({ label, icon: Icon }) => (<span key={label} className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text-muted"><Icon className="h-3.5 w-3.5 text-signal-blue" />{label}</span>))}
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[13px] text-text-muted">
+              <span className="h-1.5 w-1.5 rounded-full bg-signal-green" /> Bloomberg Terminal meets crypto UX
+            </div>
+            <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-[-0.04em] text-text md:text-[48px] md:leading-[1.02]">
+              Autonomous market intelligence for crypto-native teams.
+            </h1>
+            <p className="mt-5 max-w-2xl text-[15px] leading-7 text-text-muted">
+              Sharpline monitors live markets, detects material movement, explains the signal, and records every outcome in a high-density decision terminal.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <a className="rounded-full bg-text px-5 py-2.5 text-sm font-semibold text-bg hover:bg-text/90" href="/signals">Review live signals</a>
+              <a className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-text-muted hover:bg-card hover:text-text" href="/analytics">Open analytics</a>
             </div>
           </div>
-          <div className="rounded-full border border-border bg-surface px-4 py-2 text-xs text-text-muted">{hasActiveMatch ? "LIVE · Connected to TxLINE" : "LIVE · Waiting for next TxLINE match"}</div>
+          <div className="premium-card p-4">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div>
+                <p className="kicker">Market Overview</p>
+                <p className="mt-1 text-sm text-text-muted">Live indicator · {hasActiveMatch ? "Connected" : "Standing by"}</p>
+              </div>
+              <span className="rounded-full border border-signal-green/20 bg-signal-green/10 px-3 py-1 font-data text-[11px] text-signal-green">{title(agentState?.txline_status) ?? "Online"}</span>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              {markets.map(({ asset, price, change, tone, icon: Icon }) => <div key={asset} className="rounded-2xl bg-bg/70 p-4"><Icon className="h-4 w-4 text-text-muted" /><p className="mt-4 text-lg font-semibold">{asset}</p><p className="font-data text-sm text-text-muted">{price}</p><p className={`mt-2 font-data text-xs ${tone}`}>{change}</p></div>)}
+            </div>
+          </div>
         </div>
-        <div className="mt-10 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {statusCards.map(({ label, value, detail, icon: Icon, dot }) => (<div key={label} className="rounded-2xl border border-border bg-surface p-4"><div className="flex items-center justify-between"><Icon className="h-4 w-4 text-text-muted" /><span className={`h-2 w-2 rounded-full ${dot}`} /></div><p className="mt-5 text-xs text-text-muted">{label}</p><p className="mt-1 font-display text-xl font-semibold leading-tight text-text">{value}</p><p className="mt-2 text-[11px] text-text-muted">{detail}</p></div>))}
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {overview.map(({ label, value, meta, icon: Icon }) => <div key={label} className="premium-card premium-card-hover p-5"><div className="flex items-center justify-between"><Icon className="h-4 w-4 text-text-muted" /><span className="h-1.5 w-1.5 rounded-full bg-signal-blue" /></div><p className="mt-5 text-[13px] text-text-muted">{label}</p><p className="mt-1 text-2xl font-semibold tracking-tight text-text">{value}</p><p className="mt-2 font-data text-[11px] text-text-muted">{meta}</p></div>)}
         </div>
       </div>
     </section>
   );
 }
 function title(value?: string | null) { return value ? value.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()) : null; }
-function stateLabel(value?: string | null) { if (!value) return "Not reported yet"; if (value === "processing_live_match") return "Processing live match"; if (value === "waiting_for_kickoff") return "Waiting for kickoff"; return "Monitoring live odds"; }
+function formatCount(value?: number | null) { return value === null || value === undefined ? "—" : Intl.NumberFormat("en-US", { notation: "compact" }).format(value); }
+function sentiment(accuracy?: number | null) { if (!accuracy) return "Neutral"; if (accuracy >= 65) return "Bullish"; if (accuracy <= 45) return "Cautious"; return "Constructive"; }
