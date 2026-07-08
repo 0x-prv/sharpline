@@ -55,9 +55,10 @@ function Metric({ label, value }: { label: string; value: string }) { return <di
 function Mini({ label, value, tone = "text-text" }: { label: string; value: string; tone?: string }) { return <div className="rounded-2xl border border-border bg-bg/70 p-4"><p className="text-xs text-text-muted">{label}</p><p className={`mt-1 font-data text-lg ${tone}`}>{value}</p></div>; }
 function ticker(selection: string) { return selection.split(/\s|_/)[0]?.slice(0, 6).toUpperCase() || "MKT"; }
 function relativeTime(value: string) { const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000)); if (seconds < 60) return `${seconds}s ago`; const m = Math.round(seconds / 60); return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; }
-function buildAnalysis(explanation: string, reasonCode: string, movement: number) { const summary = explanation || explainReason(reasonCode) || "A material market move was detected and ranked by confidence."; return [
+function buildAnalysis(explanation: string, reasonCode: string, movement: number) { const summary = explanation || explainReason(reasonCode) || "A material market move was detected and ranked by confidence."; const momentum = Math.abs(movement) > 8 ? "Momentum is elevated versus the pre-signal baseline, so Sharpline will continue tracking follow-through and mean reversion." : "Momentum is developing; Sharpline will keep monitoring confirmation before ranking this as a stronger move."; return [
   { title: "Summary", body: summary, icon: Radio },
-  { title: "Why this matters", body: `The market repriced ${Math.abs(movement).toFixed(1)}%, suggesting fresh information, liquidity imbalance, or sharp positioning.`, icon: TrendingUp },
-  { title: "Key levels", body: `Watch current odds against the prior ${movement < 0 ? "resistance" : "support"} level; invalidation begins if price mean-reverts through the pre-signal mark.`, icon: Clock },
-  { title: "Risks", body: "Low-liquidity venues, stale feeds, and event-driven volatility can create false positives. Size accordingly until confirmation improves.", icon: ShieldAlert },
+  { title: "Why It Matters", body: `The market repriced ${Math.abs(movement).toFixed(1)}%, suggesting fresh information, liquidity imbalance, or sharp positioning.`, icon: TrendingUp },
+  { title: "Momentum", body: momentum, icon: Clock },
+  { title: "Risk", body: "Low-liquidity venues, stale feeds, and event-driven volatility can create false positives. Size accordingly until confirmation improves.", icon: ShieldAlert },
+  { title: "Confidence", body: "Confidence blends movement size, timing, market context, and historical signal behavior before Sharpline elevates a detection.", icon: Radio },
 ]; }

@@ -39,6 +39,7 @@ const PRICE_SCALE = 1000;
 const MONITOR_INTERVAL_MS = 60 * 1000; // re-check every 1 min whether window ended
 const HEARTBEAT_INTERVAL_MS = 20 * 1000;
 const RECONCILIATION_INTERVAL_MS = 5 * 60 * 1000;
+const STREAM_RECONNECT_BACKOFF_MS = 5 * 1000;
 
 const counters = {
   fixturesLoaded: 0,
@@ -467,6 +468,7 @@ async function runActiveWindow() {
   } catch (err: any) {
     counters.reconnectCount++;
     txlineStatus = "reconnecting";
+    controller.abort();
     console.error("[worker] stream error:", err?.message ?? err);
   } finally {
     clearInterval(monitor);
@@ -500,6 +502,7 @@ async function main() {
     if (isAnyMatchActive()) {
       console.log("[worker] match window active — connecting streams");
       await runActiveWindow();
+      if (isAnyMatchActive()) await sleep(STREAM_RECONNECT_BACKOFF_MS);
     } else {
       const waitMs = Math.min(msUntilNextWindowChange(), REFRESH_INTERVAL_MS);
       const waitMin = Math.max(1, Math.round(waitMs / 60000));
