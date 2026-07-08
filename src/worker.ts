@@ -20,6 +20,9 @@ import {
   insertOddsSnapshot,
   insertMarketSignal,
   upsertAgentState,
+  getHistoricalComparison,
+  getPendingMarketSignals,
+  resolveMarketSignal,
 } from "./db/repository.js";
 import {
   refreshFixtureWindows,
@@ -177,22 +180,35 @@ async function handleOddsMessage(event: string, data: any) {
     }, match);
 
     if (marketSignal) {
-      const ai = await explainSignal(marketSignal);
-      await insertMarketSignal({
-        fixture_id: marketSignal.fixtureId,
-        match: marketSignal.match,
+      const historicalComparison = await getHistoricalComparison({
         market: marketSignal.market,
         selection: marketSignal.selection,
-        previous_odds: marketSignal.previousOdds,
-        current_odds: marketSignal.currentOdds,
-        movement_pct: marketSignal.movementPct,
-        direction: marketSignal.direction,
-        severity: marketSignal.severity,
-        confidence: marketSignal.confidence,
-        reason_code: marketSignal.reasonCode,
         action: marketSignal.action,
+        reason_code: marketSignal.reasonCode,
+      });
+      const enrichedSignal = { ...marketSignal, historicalComparison };
+      const ai = await explainSignal(enrichedSignal);
+      await insertMarketSignal({
+        fixture_id: enrichedSignal.fixtureId,
+        competition: enrichedSignal.competition,
+        match: enrichedSignal.match,
+        market: enrichedSignal.market,
+        selection: enrichedSignal.selection,
+        previous_odds: enrichedSignal.previousOdds,
+        current_odds: enrichedSignal.currentOdds,
+        movement_pct: enrichedSignal.movementPct,
+        direction: enrichedSignal.direction,
+        severity: enrichedSignal.severity,
+        confidence: enrichedSignal.confidence,
+        reason_code: enrichedSignal.reasonCode,
+        action: enrichedSignal.action,
         explanation: ai.explanation,
         ai_provider: ai.aiProvider,
+        historical_similar_count: historicalComparison.similarSignals,
+        historical_success_rate: historicalComparison.historicalSuccessRate,
+        historical_average_roi: historicalComparison.averageRoi,
+        current_match_state: enrichedSignal.currentMatchState,
+        pending_resolution: enrichedSignal.pendingResolution,
         is_demo: false,
       });
       counters.signalsGenerated++;
@@ -246,8 +262,25 @@ async function handleGameFinalised(data: any) {
 
   await saveFinalScore(fixtureId, score);
 
+  const pendingMarketSignals = await getPendingMarketSignals(fixtureId);
+  console.log(`[resolver] resolving ${pendingMarketSignals.length} pending market signal(s) for fixture ${fixtureId}`);
+
+  for (const signal of pendingMarketSignals) {
+    const outcome = resolveSignal({ market: signal.market, selection: signal.selection }, score);
+    if (outcome === null) {
+      console.log(`[resolver] skipped market signal (unsupported market): ${signal.market}/${signal.selection}`);
+      continue;
+    }
+    await resolveMarketSignal(signal, {
+      outcome,
+      finalScore: `${score.home_total}-${score.away_total}`,
+      finalOdds: Number(signal.current_odds),
+    });
+    console.log(`[resolver] market signal ${signal.id} ${signal.market}/${signal.selection} -> ${outcome}`);
+  }
+
   const pendingSignals = await getPendingSignals(fixtureId);
-  console.log(`[resolver] resolving ${pendingSignals.length} pending signal(s) for fixture ${fixtureId}`);
+  console.log(`[resolver] resolving ${pendingSignals.length} legacy pending signal(s) for fixture ${fixtureId}`);
 
   for (const signal of pendingSignals) {
     const outcome = resolveSignal(

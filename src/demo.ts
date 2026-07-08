@@ -36,7 +36,7 @@ async function main() {
     const detected = detectMarketSignal(event, match);
     if (!detected) continue;
     const ai = await explainSignal(detected);
-    await insertMarketSignal({ fixture_id: detected.fixtureId, match: detected.match, market: detected.market, selection: detected.selection, previous_odds: detected.previousOdds, current_odds: detected.currentOdds, movement_pct: detected.movementPct, direction: detected.direction, severity: detected.severity, confidence: detected.confidence, reason_code: detected.reasonCode, action: detected.action, explanation: ai.explanation, ai_provider: ai.aiProvider, is_demo: true });
+    await insertMarketSignal({ fixture_id: detected.fixtureId, competition: detected.competition, match: detected.match, market: detected.market, selection: detected.selection, previous_odds: detected.previousOdds, current_odds: detected.currentOdds, movement_pct: detected.movementPct, direction: detected.direction, severity: detected.severity, confidence: detected.confidence, reason_code: detected.reasonCode, action: detected.action, explanation: ai.explanation, ai_provider: ai.aiProvider, historical_similar_count: 0, historical_success_rate: null, historical_average_roi: null, current_match_state: detected.currentMatchState, pending_resolution: detected.pendingResolution, is_demo: true });
     signals++;
   }
   await insertAgentRun({ mode: "demo", status: "finished", message: `DEMO MODE finished with ${signals} simulated signals.`, metrics: { signals } });

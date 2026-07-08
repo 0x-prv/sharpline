@@ -1,6 +1,6 @@
 import { Award, CheckCircle2, Target, TrendingUp, XCircle } from "lucide-react";
 
-type Stats = { totalSignals: number | null; signalsToday: number | null; highConfidenceAlerts: number | null; accuracy: number | null; correctSignals?: number | null; incorrectSignals?: number | null; highConfidenceAccuracy?: number | null };
+type Stats = { totalSignals: number | null; signalsToday: number | null; highConfidenceAlerts: number | null; accuracy: number | null; correctSignals?: number | null; incorrectSignals?: number | null; highConfidenceAccuracy?: number | null; averageRoi?: number | null; avgConfidence?: number | null; bestStrategy?: string | null; totalOddsUpdatesToday?: number | null };
 
 export function StatsRow({ stats }: { stats: Stats }) {
   const items = [
@@ -8,8 +8,8 @@ export function StatsRow({ stats }: { stats: Stats }) {
     { label: "Correct Signals", value: (stats.correctSignals ?? 0) > 0 ? String(stats.correctSignals) : "Waiting for first resolved signal", trend: "Resolution tracking", icon: CheckCircle2 },
     { label: "Incorrect Signals", value: (stats.incorrectSignals ?? 0) > 0 ? String(stats.incorrectSignals) : "Waiting for first resolved signal", trend: "Resolution tracking", icon: XCircle },
     { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "Waiting for first resolved signal", trend: "Live only", icon: Target },
-    { label: "High Confidence Accuracy", value: stats.highConfidenceAccuracy !== null && stats.highConfidenceAccuracy !== undefined ? `${stats.highConfidenceAccuracy}%` : "Waiting for first resolved signal", trend: "Live only", icon: Award },
-    { label: "Best Performing Strategy", value: "FOLLOW", trend: "Leading", icon: Award },
+    { label: "Average ROI", value: stats.averageRoi !== null && stats.averageRoi !== undefined ? `${stats.averageRoi}` : "Waiting for first resolved signal", trend: "Stored outcomes", icon: Award },
+    { label: "Best Performing Strategy", value: stats.bestStrategy ?? "Waiting for resolved data", trend: `${stats.avgConfidence ?? "n/a"}% avg confidence · ${stats.totalOddsUpdatesToday ?? 0} odds updates today`, icon: Award },
   ];
 
   return (

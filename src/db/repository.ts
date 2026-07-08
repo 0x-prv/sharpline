@@ -191,6 +191,7 @@ export async function insertOddsSnapshot(snapshot: {
 
 export async function insertMarketSignal(signal: {
   fixture_id: string;
+  competition: string;
   match: string;
   market: string;
   selection: string;
@@ -204,11 +205,20 @@ export async function insertMarketSignal(signal: {
   action: string;
   explanation: string;
   ai_provider: string;
+  historical_similar_count?: number;
+  historical_success_rate?: number | null;
+  historical_average_roi?: number | null;
+  current_match_state: string;
+  pending_resolution: boolean;
   is_demo?: boolean;
 }) {
-  const { error } = await supabase.from("market_signals").insert(signal);
-  if (error) console.error("[db] insertMarketSignal error:", error.message);
-  else console.log(JSON.stringify({ level: "info", component: "signal", ...signal }));
+  const { data, error } = await supabase.from("market_signals").insert(signal).select("id").single();
+  if (error) {
+    console.error("[db] insertMarketSignal error:", error.message);
+    return null;
+  }
+  console.log(JSON.stringify({ level: "info", component: "signal", signal_id: data.id, ...signal }));
+  return data.id as string;
 }
 
 export async function insertAgentRun(run: {
@@ -219,4 +229,70 @@ export async function insertAgentRun(run: {
 }) {
   const { error } = await supabase.from("agent_runs").insert(run);
   if (error) console.error("[db] insertAgentRun error:", error.message);
+}
+
+
+export async function getHistoricalComparison(params: { market: string; selection: string; action: string; reason_code: string }) {
+  const { data, error } = await supabase
+    .from("signal_resolutions")
+    .select("outcome, roi_units, market_signals!inner(match, market, selection, action, reason_code, occurred_at)")
+    .eq("market_signals.market", params.market)
+    .eq("market_signals.selection", params.selection)
+    .eq("market_signals.action", params.action)
+    .eq("market_signals.reason_code", params.reason_code)
+    .order("resolved_at", { ascending: false })
+    .limit(25);
+  if (error) {
+    console.error("[db] getHistoricalComparison error:", error.message);
+    return { similarSignals: 0, historicalSuccessRate: null, averageRoi: null, examples: [] };
+  }
+  const rows = data ?? [];
+  const decisive = rows.filter((row: any) => row.outcome === "won" || row.outcome === "lost");
+  const wins = decisive.filter((row: any) => row.outcome === "won").length;
+  const roiRows = rows.filter((row: any) => row.roi_units !== null && row.roi_units !== undefined);
+  return {
+    similarSignals: rows.length,
+    historicalSuccessRate: decisive.length ? Math.round((wins / decisive.length) * 100) : null,
+    averageRoi: roiRows.length ? Number((roiRows.reduce((sum: number, row: any) => sum + Number(row.roi_units), 0) / roiRows.length).toFixed(2)) : null,
+    examples: rows.slice(0, 3).map((row: any) => ({
+      match: row.market_signals.match,
+      market: row.market_signals.market,
+      selection: row.market_signals.selection,
+      outcome: row.outcome,
+      roi_units: Number(row.roi_units),
+      occurred_at: row.market_signals.occurred_at,
+    })),
+  };
+}
+
+export async function getPendingMarketSignals(fixtureId: string) {
+  const { data, error } = await supabase
+    .from("market_signals")
+    .select("*")
+    .eq("fixture_id", fixtureId)
+    .eq("pending_resolution", true);
+  if (error) {
+    console.error("[db] getPendingMarketSignals error:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+export async function resolveMarketSignal(signal: { id: string; current_odds: number }, result: { outcome: "won" | "lost" | "push"; finalScore: string; finalOdds: number | null }) {
+  const roi = result.outcome === "push" ? 0 : result.outcome === "won" ? Number(signal.current_odds) - 1 : -1;
+  const resolvedAt = new Date().toISOString();
+  const { error: resolutionError } = await supabase.from("signal_resolutions").insert({
+    signal_id: signal.id,
+    outcome: result.outcome,
+    roi_units: roi,
+    final_score: result.finalScore,
+    final_odds: result.finalOdds,
+    resolved_at: resolvedAt,
+  });
+  if (resolutionError) console.error("[db] resolveMarketSignal insert error:", resolutionError.message);
+  const { error: signalError } = await supabase
+    .from("market_signals")
+    .update({ pending_resolution: false, resolved_at: resolvedAt, outcome: result.outcome, final_score: result.finalScore, final_odds: result.finalOdds, roi_units: roi })
+    .eq("id", signal.id);
+  if (signalError) console.error("[db] resolveMarketSignal update error:", signalError.message);
 }
