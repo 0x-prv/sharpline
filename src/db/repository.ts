@@ -104,20 +104,32 @@ export async function saveFinalScore(
     away_h1: number;
     home_total: number;
     away_total: number;
-  }
+  },
+  finishedAt = new Date().toISOString()
 ) {
-  const { error } = await supabase
-    .from("fixtures")
+  const fixturePayload = {
+    home_score_h1: score.home_h1,
+    away_score_h1: score.away_h1,
+    home_score_total: score.home_total,
+    away_score_total: score.away_total,
+    status: "finished",
+    finished_at: finishedAt,
+  };
+  const { error } = await supabase.from("fixtures").update(fixturePayload).eq("id", fixtureId);
+  if (error) console.error("[db] saveFinalScore fixtures error:", error.message);
+
+  const { error: matchError } = await supabase
+    .from("matches")
     .update({
-      home_score_h1: score.home_h1,
-      away_score_h1: score.away_h1,
-      home_score_total: score.home_total,
-      away_score_total: score.away_total,
       status: "finished",
-      finished_at: new Date().toISOString(),
+      home_score: score.home_total,
+      away_score: score.away_total,
+      finished_at: finishedAt,
+      updated_at: new Date().toISOString(),
     })
-    .eq("id", fixtureId);
-  if (error) console.error("[db] saveFinalScore error:", error.message);
+    .eq("id", fixtureId)
+    .eq("is_demo", false);
+  if (matchError) console.error("[db] saveFinalScore matches error:", matchError.message);
 }
 
 export async function getPendingSignals(fixtureId: string) {
@@ -161,6 +173,9 @@ export async function insertMatch(match: {
   away_team: string;
   status?: string;
   kickoff_at?: string | null;
+  finished_at?: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
   is_demo?: boolean;
 }) {
   const { error } = await supabase.from("matches").upsert({
@@ -169,6 +184,9 @@ export async function insertMatch(match: {
     away_team: match.away_team,
     status: match.status ?? "scheduled",
     kickoff_at: match.kickoff_at ?? null,
+    finished_at: match.finished_at ?? null,
+    home_score: match.home_score ?? null,
+    away_score: match.away_score ?? null,
     is_demo: match.is_demo ?? false,
     updated_at: new Date().toISOString(),
   });

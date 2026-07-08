@@ -38,6 +38,8 @@ const HEARTBEAT_INTERVAL_MS = 20 * 1000;
 
 const counters = {
   fixturesLoaded: 0,
+  upcomingFixturesLoaded: 0,
+  completedFixturesLoaded: 0,
   eventsProcessed: 0,
   oddsUpdatesProcessed: 0,
   signalsGenerated: 0,
@@ -54,6 +56,25 @@ const matchStates = new Map<string, MatchState>();
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+
+function getTotalGoals(score: any, participant: "Participant1" | "Participant2") {
+  return score?.[participant]?.Total?.Goals ?? score?.[participant]?.FT?.Goals ?? score?.[participant]?.Goals ?? null;
+}
+
+function isCompletedFixture(fixture: any) {
+  const state = String(fixture.Status ?? fixture.GameStatus ?? fixture.State ?? "").toLowerCase();
+  const action = String(fixture.Action ?? "").toLowerCase();
+  const home = getTotalGoals(fixture.Score, "Participant1");
+  const away = getTotalGoals(fixture.Score, "Participant2");
+  return fixture.GameState === 2 || fixture.GameState === 3 || ["finished", "completed", "final"].includes(state) || action === "game_finalised" || (home !== null && away !== null && Boolean(fixture.EndTime ?? fixture.FinishedAt));
+}
+
+function normalizeFinishedAt(fixture: any, fallbackToNow = false) {
+  const value = fixture.EndTime ?? fixture.FinishedAt ?? fixture.FinishTime ?? fixture.UpdatedAt ?? null;
+  if (value) return new Date(value).toISOString();
+  return fallbackToNow ? new Date().toISOString() : null;
 }
 
 function normalizeScoreEvent(raw: any) {
@@ -95,15 +116,21 @@ function normalizeOddsTicks(raw: any): NormalizedTick[] {
 }
 
 async function loadWorldCupFixtures() {
+  // Replay is built from stored live odds captured while the worker was running.
+  // It cannot reconstruct odds history for matches that were completed before SharpLine was deployed.
   console.log("[worker] loading World Cup fixtures...");
   const fixtures = await getFixturesSnapshot(WORLD_CUP_COMPETITION_ID);
 
   for (const f of fixtures) {
     const fixtureId = String(f.FixtureId);
-    const status = f.GameState === 1 ? "live_or_upcoming" : "scheduled";
+    const completed = isCompletedFixture(f);
+    const status = completed ? "finished" : f.GameState === 1 ? "live_or_upcoming" : "scheduled";
     const kickoffAt = f.StartTime ? new Date(f.StartTime).toISOString() : null;
+    const finishedAt = completed ? normalizeFinishedAt(f, true) : null;
     const homeTeam = f.Participant1 ?? "Participant 1";
     const awayTeam = f.Participant2 ?? "Participant 2";
+    const homeScore = getTotalGoals(f.Score, "Participant1");
+    const awayScore = getTotalGoals(f.Score, "Participant2");
 
     await upsertFixture({
       id: fixtureId,
@@ -118,20 +145,25 @@ async function loadWorldCupFixtures() {
       away_team: awayTeam,
       status,
       kickoff_at: kickoffAt,
+      finished_at: finishedAt,
+      home_score: homeScore,
+      away_score: awayScore,
       is_demo: false,
     });
 
     matchStates.set(fixtureId, {
       fixtureId,
       match: `${homeTeam} vs ${awayTeam}`,
-      homeScore: 0,
-      awayScore: 0,
+      homeScore: homeScore ?? 0,
+      awayScore: awayScore ?? 0,
       isDemo: false,
     });
   }
 
   counters.fixturesLoaded = fixtures.length;
-  console.log(JSON.stringify({ level: "info", component: "worker", event: "fixtures_loaded", count: fixtures.length }));
+  counters.completedFixturesLoaded = fixtures.filter(isCompletedFixture).length;
+  counters.upcomingFixturesLoaded = fixtures.length - counters.completedFixturesLoaded;
+  console.log(JSON.stringify({ level: "info", component: "worker", event: "fixtures_loaded", count: fixtures.length, upcoming: counters.upcomingFixturesLoaded, completed: counters.completedFixturesLoaded }));
 }
 
 async function handleOddsMessage(event: string, data: any) {
@@ -366,7 +398,9 @@ async function saveHeartbeat() {
     last_heartbeat_at: new Date().toISOString(),
     last_txline_event_at: lastTxlineEventAt,
     active_fixture_id: activeFixtureId,
-    notes: active ? "Active match. Processing live TxLINE odds and score feeds." : "No active match. Monitoring fixture windows.",
+    notes: active
+      ? "Active match. Processing live TxLINE odds and score feeds."
+      : `No active match. Loaded ${counters.upcomingFixturesLoaded} upcoming and ${counters.completedFixturesLoaded} completed TxLINE fixtures. Replay is built from stored live odds captured while the worker was running.`,
   });
   console.log(JSON.stringify({ level: "info", component: "worker", event: "heartbeat_saved", txlineStatus, currentState, activeMatch: active, fixturesLoaded: counters.fixturesLoaded, oddsUpdatesProcessed: counters.oddsUpdatesProcessed, signalsGenerated: counters.signalsGenerated }));
 }

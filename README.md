@@ -62,3 +62,9 @@ npm run build --prefix sharpline-web
 ## Demo fallback
 
 Demo mode exists only as a local fallback via `npm run demo`. Demo rows are marked with `is_demo = true`, and the main production dashboard filters them out so simulated signals do not appear as live product activity.
+
+## Completed fixture history and replay limits
+
+On worker startup SharpLine loads both upcoming and recently completed TxLINE fixture snapshots, then upserts production rows into `matches` with `is_demo = false`, team names, status, kickoff time, final score, and finish time when TxLINE provides it. Completed matches are shown in Overview, Signals, and Analytics even when no signals were captured.
+
+Replay is built from stored live odds captured while the worker was running. It cannot reconstruct odds history for matches that were completed before SharpLine was deployed. If TxLINE exposes historical odds snapshots for completed fixtures in the future, those snapshots should be persisted to `odds_snapshots` with `is_demo = false`; otherwise SharpLine displays the final result with a clear replay-unavailable message.

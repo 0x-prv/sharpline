@@ -8,6 +8,7 @@ export type CompletedMatch = {
   kickoff_at: string | null;
   finished_at: string | null;
   final_score?: string | null;
+  replayAvailable: boolean;
   signals: number;
   resolvedSignals: number;
   accuracy: number | null;
@@ -56,10 +57,10 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
   try {
     const { data: matches, error } = await supabaseServer
       .from("matches")
-      .select("id, home_team, away_team, status, kickoff_at, finished_at")
+      .select("id, home_team, away_team, status, kickoff_at, finished_at, home_score, away_score")
       .eq("is_demo", false)
-      .not("finished_at", "is", null)
-      .order("finished_at", { ascending: false })
+      .or("finished_at.not.is.null,status.in.(finished,completed,final)")
+      .order("finished_at", { ascending: false, nullsFirst: false })
       .limit(limit);
     if (error || !matches?.length) return [];
 
@@ -82,13 +83,14 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
       const matchOdds = odds.filter((tick) => tick.fixture_id === match.id);
       const first = matchOdds[0];
       const last = matchOdds.at(-1);
-      const finalScore = matchResolutions.find((row) => row.final_score)?.final_score ?? (last ? `${last.home_score ?? 0}-${last.away_score ?? 0}` : null);
+      const finalScore = matchResolutions.find((row) => row.final_score)?.final_score ?? (match.home_score !== null && match.away_score !== null ? `${match.home_score}-${match.away_score}` : last ? `${last.home_score ?? 0}-${last.away_score ?? 0}` : null);
       const best = matchSignals.slice().sort((a, b) => Number(b.confidence ?? 0) - Number(a.confidence ?? 0))[0];
       const largest = matchSignals.length ? Math.max(...matchSignals.map((signal) => Math.abs(Number(signal.movement_pct ?? 0)))) : null;
       const roiVals = matchResolutions.map((row) => Number(row.roi_units ?? 0));
       return {
         ...match,
         final_score: finalScore,
+        replayAvailable: matchOdds.length > 0 || matchSignals.length > 0,
         signals: matchSignals.length,
         resolvedSignals: matchResolutions.length,
         accuracy: decisive.length ? Math.round((wins / decisive.length) * 100) : null,
@@ -149,7 +151,7 @@ export async function getOddsHistory(fixtureId: string, market: string, limit = 
 export async function getMatchReplay(fixtureId: string) {
   try {
     const [matchRes, oddsRes, signalsRes, resolutionsRes] = await Promise.all([
-      supabaseServer.from("matches").select("id, home_team, away_team, status, kickoff_at, finished_at").eq("is_demo", false).eq("id", fixtureId).maybeSingle(),
+      supabaseServer.from("matches").select("id, home_team, away_team, status, kickoff_at, finished_at, home_score, away_score").eq("is_demo", false).eq("id", fixtureId).maybeSingle(),
       supabaseServer.from("odds_snapshots").select("*").eq("fixture_id", fixtureId).eq("is_demo", false).order("received_at", { ascending: true }).limit(120),
       supabaseServer.from("market_signals").select("*").eq("fixture_id", fixtureId).eq("is_demo", false).order("occurred_at", { ascending: true }),
       supabaseServer.from("signal_resolutions").select("*, market_signals!inner(id, fixture_id, is_demo)").eq("market_signals.is_demo", false).eq("market_signals.fixture_id", fixtureId).order("resolved_at", { ascending: true }),
@@ -168,7 +170,8 @@ export async function getLiveSignalStats() {
   try {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    const [total, todaySignals, highConf, oddsToday, signals, resolutions] = await Promise.all([
+    const [completed, total, todaySignals, highConf, oddsToday, signals, resolutions] = await Promise.all([
+      supabaseServer.from("matches").select("*", { count: "exact", head: true }).eq("is_demo", false).or("finished_at.not.is.null,status.in.(finished,completed,final)"),
       supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false),
       supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false).gte("occurred_at", today.toISOString()),
       supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false).gte("confidence", 85),
@@ -193,8 +196,8 @@ export async function getLiveSignalStats() {
       return { action, signals: allSignals.filter((s) => s.action === action).length, resolved: rows.length, accuracy: dec.length ? Math.round((actionWins / dec.length) * 100) : null, averageRoi: rows.length ? Number(rows.reduce((sum, r) => sum + Number(r.roi_units ?? 0), 0).toFixed(2)) : null };
     });
     const ranked = byAction.filter((x) => x.accuracy !== null).sort((a, b) => (b.accuracy ?? 0) - (a.accuracy ?? 0));
-    return { totalSignals: total.count ?? null, signalsToday: todaySignals.count ?? null, highConfidenceAlerts: highConf.count ?? null, totalOddsUpdatesToday: oddsToday.count ?? null, accuracy, correctSignals: wins, incorrectSignals: losses, highConfidenceAccuracy: accuracy, averageRoi, avgConfidence, strategyPerformance: byAction, bestStrategy: ranked[0]?.action ?? null, worstStrategy: ranked.at(-1)?.action ?? null };
-  } catch { return { totalSignals: null, signalsToday: null, highConfidenceAlerts: null, totalOddsUpdatesToday: null, accuracy: null, correctSignals: null, incorrectSignals: null, highConfidenceAccuracy: null, averageRoi: null, avgConfidence: null, strategyPerformance: [], bestStrategy: null, worstStrategy: null }; }
+    return { completedMatches: completed.count ?? null, totalSignals: total.count ?? null, signalsToday: todaySignals.count ?? null, highConfidenceAlerts: highConf.count ?? null, totalOddsUpdatesToday: oddsToday.count ?? null, accuracy, correctSignals: wins, incorrectSignals: losses, highConfidenceAccuracy: accuracy, averageRoi, avgConfidence, strategyPerformance: byAction, bestStrategy: ranked[0]?.action ?? null, worstStrategy: ranked.at(-1)?.action ?? null };
+  } catch { return { completedMatches: null, totalSignals: null, signalsToday: null, highConfidenceAlerts: null, totalOddsUpdatesToday: null, accuracy: null, correctSignals: null, incorrectSignals: null, highConfidenceAccuracy: null, averageRoi: null, avgConfidence: null, strategyPerformance: [], bestStrategy: null, worstStrategy: null }; }
 }
 
 export const getStats = getLiveSignalStats;
