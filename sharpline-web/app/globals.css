@@ -1,33 +1,58 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0B0D10;
-  --color-surface: #14171B;
-  --color-surface-hover: #1B1F24;
-  --color-border: #22262B;
-  --color-text: #E7E9EA;
-  --color-text-muted: #8A9099;
-  --color-signal-green: #37D67A;
-  --color-signal-amber: #F2A93B;
-  --color-signal-coral: #FF5D5D;
-  --color-signal-blue: #4D8DFF;
+  --color-bg: #08090A;
+  --color-surface: #111315;
+  --color-surface-hover: #171A1D;
+  --color-card: #171A1D;
+  --color-border: rgba(255,255,255,.06);
+  --color-text: #FFFFFF;
+  --color-text-muted: #9CA3AF;
+  --color-signal-green: #22C55E;
+  --color-signal-amber: #F59E0B;
+  --color-signal-coral: #EF4444;
+  --color-signal-blue: #3B82F6;
 
-  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-display: "Inter", "Space Grotesk", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
   --font-data: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 }
 
-body {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-}
 * { box-sizing: border-box; }
-
+html { background: #08090A; color-scheme: dark; }
 body {
   min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(59, 130, 246, 0.08), transparent 34rem),
+    linear-gradient(180deg, rgba(255,255,255,.018), transparent 18rem),
+    var(--color-bg);
+  color: var(--color-text);
   font-family: var(--font-body);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
 }
 
-::selection {
-  background: rgba(77, 141, 255, 0.28);
+::selection { background: rgba(59, 130, 246, 0.28); }
+
+button, a, input, select, textarea { transition: all 150ms ease; }
+
+.premium-card {
+  border: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,0)), #171A1D;
+  border-radius: 20px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.18);
 }
+.premium-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,.11);
+  box-shadow: 0 20px 64px rgba(0,0,0,.28);
+}
+.kicker { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: #9CA3AF; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th { color: #9CA3AF; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; text-align: left; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.06); }
+.data-table td { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.04); }
+.skeleton { position: relative; overflow: hidden; background: rgba(255,255,255,.045); }
+.skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent); animation: shimmer 1.6s infinite; }
+@keyframes shimmer { 100% { transform: translateX(100%); } }

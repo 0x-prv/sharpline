@@ -2,16 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sharpline — Autonomous sharp-money detection",
+  title: "Sharpline — Crypto-native market intelligence",
   description:
-    "An autonomous agent that detects, explains, and tracks sharp odds movements on TxLINE World Cup 2026 feeds.",
+    "A premium autonomous intelligence terminal for live market signals, AI analysis, and historical performance.",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>{children}</body>
