@@ -5,6 +5,8 @@ create table if not exists matches (
   status text not null default 'scheduled',
   kickoff_at timestamptz,
   finished_at timestamptz,
+  home_score int,
+  away_score int,
   is_demo boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -90,6 +92,9 @@ create index if not exists odds_snapshots_demo_time_idx on odds_snapshots(is_dem
 insert into agent_state (id, mode, txline_status, worker_status, current_state, notes)
 values ('live', 'live', 'waiting', 'stopped', 'monitoring', 'Live worker has not reported yet.')
 on conflict (id) do nothing;
+
+alter table matches add column if not exists home_score int;
+alter table matches add column if not exists away_score int;
 
 alter table market_signals add column if not exists competition text not null default 'FIFA World Cup 2026';
 alter table market_signals add column if not exists current_match_state text not null default '0-0';

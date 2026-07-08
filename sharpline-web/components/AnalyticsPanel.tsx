@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { actionTone, explainAction, formatMarketSelection } from "./copy";
 
 type Stats = {
+  completedMatches?: number | null;
   totalSignals: number | null;
   correctSignals?: number | null;
   incorrectSignals?: number | null;
@@ -34,6 +35,17 @@ export function AnalyticsPanel({ stats, signals }: { stats: Stats; signals: Sign
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+      <section className="rounded-2xl border border-border bg-surface p-6 lg:col-span-2">
+        <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Analytics Coverage</p>
+        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Metric label="Completed Matches" value={stats.completedMatches ?? 0} />
+          <Metric label="Captured Signals" value={stats.totalSignals ?? 0} />
+          <Metric label="Resolved Signals" value={(stats.correctSignals ?? 0) + (stats.incorrectSignals ?? 0)} />
+          <Metric label="Accuracy" value={stats.accuracy === null ? "n/a" : `${stats.accuracy}%`} />
+          <Metric label="ROI" value={stats.averageRoi === null || stats.averageRoi === undefined ? "n/a" : `${stats.averageRoi > 0 ? "+" : ""}${stats.averageRoi}`} />
+        </div>
+        {(stats.totalSignals ?? 0) === 0 ? <p className="mt-4 text-sm text-text-muted">Completed TxLINE matches are loaded. Accuracy and ROI appear after SharpLine captures and resolves live signals.</p> : null}
+      </section>
       <section className="rounded-2xl border border-border bg-surface p-6">
         <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Accuracy Trends</p>
         <h2 className="mt-3 font-display text-2xl font-semibold text-text">Historical Chart</h2>
@@ -90,4 +102,8 @@ export function AnalyticsPanel({ stats, signals }: { stats: Stats; signals: Sign
       </section>
     </div>
   );
+}
+
+function Metric({ label, value }: { label: string; value: string | number }) {
+  return <div className="rounded-xl border border-border bg-bg/50 p-4"><p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">{label}</p><p className="mt-2 font-display text-2xl font-semibold text-text">{value}</p></div>;
 }
