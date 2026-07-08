@@ -1,11 +1,10 @@
 import { Nav } from "../components/Nav";
 import { Hero } from "../components/Hero";
 import { SignalCard } from "../components/SignalCard";
-import { AgentFlowLog } from "../components/AgentFlowLog";
 import { AgentStatus } from "../components/AgentStatus";
-import { AgentHealth } from "../components/AgentHealth";
 import { QuickNavCards } from "../components/QuickNavCards";
 import { PastMatchSignals } from "../components/PastMatchSignals";
+import { AutonomousMonitoringConsole } from "../components/AutonomousMonitoringConsole";
 import { getAgentState, getCompletedMatches, getLatestLiveSignal, getLatestResolvedSignal, getLiveFixtures, getLiveSignalStats, getRecentLiveSignals } from "../lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -35,11 +34,10 @@ export default async function OverviewPage() {
         </section>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <SignalCard signal={latestSignal ?? latestResolvedSignal} />
-          <AgentFlowLog signals={recentSignals.length ? recentSignals : latestResolvedSignal ? [latestResolvedSignal] : []} mode="activity" />
+          <AutonomousMonitoringConsole agentState={agentState} fixtures={fixtures} recentSignals={recentSignals.length ? recentSignals : latestResolvedSignal ? [latestResolvedSignal] : []} />
         </div>
         <PastMatchSignals matches={completedMatches} />
         <AgentStatus agentState={agentState} />
-        <AgentHealth agentState={agentState} />
         <QuickNavCards />
       </div>
     </main>
