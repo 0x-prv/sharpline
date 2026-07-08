@@ -1,33 +1,29 @@
 import axios from "axios";
-import { readFileSync } from "fs";
-import { API_BASE_URL, NETWORK_CONFIG } from "./config.js";
+import { NETWORK_CONFIG } from "./config.js";
+import { getTxlineSession, isAuthFailure, recoverTxlineSession } from "./session.js";
 
-interface Session {
-  jwt: string;
-  apiToken: string;
-}
+const api = axios.create({ timeout: 30000, baseURL: NETWORK_CONFIG.apiOrigin, headers: { "Content-Type": "application/json" } });
 
-function loadSession(): Session {
-  const raw = readFileSync("./.txline-session.json", "utf-8");
-  return JSON.parse(raw);
-}
+api.interceptors.request.use((config) => {
+  const session = getTxlineSession();
+  config.headers.Authorization = `Bearer ${session.jwt}`;
+  config.headers["X-Api-Token"] = session.apiToken;
+  return config;
+});
 
-export const txlineSession = loadSession();
-
-const api = axios.create({
-  timeout: 30000,
-  baseURL: NETWORK_CONFIG.apiOrigin,
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${txlineSession.jwt}`,
-    "X-Api-Token": txlineSession.apiToken,
-  },
+api.interceptors.response.use(undefined, async (error) => {
+  const config = error.config ?? {};
+  if (!isAuthFailure(error) || config.__txlineRetried) throw error;
+  config.__txlineRetried = true;
+  const recovered = await recoverTxlineSession();
+  if (!recovered) throw error;
+  config.headers.Authorization = `Bearer ${recovered.jwt}`;
+  config.headers["X-Api-Token"] = recovered.apiToken;
+  return api.request(config);
 });
 
 export async function getFixturesSnapshot(competitionId?: number) {
-  const res = await api.get("/api/fixtures/snapshot", {
-    params: competitionId ? { competitionId } : undefined,
-  });
+  const res = await api.get("/api/fixtures/snapshot", { params: competitionId ? { competitionId } : undefined });
   return res.data;
 }
 

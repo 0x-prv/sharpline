@@ -1,4 +1,18 @@
+import { createHash } from "crypto";
 import { supabase } from "./supabase.js";
+
+export const LEGACY_WRITES_ENABLED = process.env.LEGACY_WRITES_ENABLED === "true";
+
+function idempotencyKey(parts: Array<string | number | null | undefined>) {
+  return createHash("sha256").update(parts.map((part) => String(part ?? "")).join("|")).digest("hex");
+}
+
+export function marketSignalIdempotencyKey(signal: { fixture_id: string; market: string; selection: string; reason_code: string; action: string; occurred_at?: string | null }) {
+  const occurred = signal.occurred_at ? new Date(signal.occurred_at) : new Date();
+  occurred.setUTCSeconds(0, 0);
+  return idempotencyKey([signal.fixture_id, signal.market, signal.selection, signal.reason_code, signal.action, occurred.toISOString()]);
+}
+
 
 export type AgentStateUpdate = {
   mode?: "live" | "demo";
@@ -34,6 +48,7 @@ export async function upsertFixture(fixture: {
   status?: string;
   kickoff_at?: string | null;
 }) {
+  if (!LEGACY_WRITES_ENABLED) return;
   const { error } = await supabase.from("fixtures").upsert({
     id: fixture.id,
     home_team: fixture.home_team,
@@ -50,6 +65,7 @@ export async function insertOddsTick(tick: {
   selection: string;
   price: number;
 }) {
+  if (!LEGACY_WRITES_ENABLED) return;
   const { error } = await supabase.from("odds_ticks").insert(tick);
   if (error) console.error("[db] insertOddsTick error:", error.message);
 }
@@ -60,6 +76,7 @@ export async function insertScoreEvent(event: {
   minute?: number | null;
   team?: string | null;
 }) {
+  if (!LEGACY_WRITES_ENABLED) return;
   const { error } = await supabase.from("score_events").insert(event);
   if (error) console.error("[db] insertScoreEvent error:", error.message);
 }
@@ -74,6 +91,7 @@ export async function insertSignal(signal: {
   classification: string;
   confidence: number;
 }) {
+  if (!LEGACY_WRITES_ENABLED) return;
   const { error } = await supabase.from("signals").insert(signal);
   if (error) console.error("[db] insertSignal error:", error.message);
   else
@@ -85,6 +103,7 @@ export async function insertSignal(signal: {
 }
 
 export async function getRecentScoreEvents(fixtureId: string, sinceMs: number) {
+  if (!LEGACY_WRITES_ENABLED) return [];
   const { data, error } = await supabase
     .from("score_events")
     .select("*")
@@ -115,8 +134,10 @@ export async function saveFinalScore(
     status: "finished",
     finished_at: finishedAt,
   };
-  const { error } = await supabase.from("fixtures").update(fixturePayload).eq("id", fixtureId);
-  if (error) console.error("[db] saveFinalScore fixtures error:", error.message);
+  if (LEGACY_WRITES_ENABLED) {
+    const { error } = await supabase.from("fixtures").update(fixturePayload).eq("id", fixtureId);
+    if (error) console.error("[db] saveFinalScore fixtures error:", error.message);
+  }
 
   const { error: matchError } = await supabase
     .from("matches")
@@ -133,6 +154,7 @@ export async function saveFinalScore(
 }
 
 export async function getPendingSignals(fixtureId: string) {
+  if (!LEGACY_WRITES_ENABLED) return [];
   const { data, error } = await supabase
     .from("signals")
     .select("*")
@@ -149,6 +171,7 @@ export async function updateSignalOutcome(
   signalId: string,
   outcome: "won" | "lost" | "push"
 ) {
+  if (!LEGACY_WRITES_ENABLED) return;
   const { error } = await supabase
     .from("signals")
     .update({ outcome, resolved_at: new Date().toISOString() })
@@ -157,6 +180,7 @@ export async function updateSignalOutcome(
 }
 
 export async function saveAnchorTx(signalId: string, signature: string) {
+  if (!LEGACY_WRITES_ENABLED) return;
   const { error } = await supabase
     .from("signals")
     .update({
@@ -228,14 +252,18 @@ export async function insertMarketSignal(signal: {
   historical_average_roi?: number | null;
   current_match_state: string;
   pending_resolution: boolean;
+  idempotency_key?: string;
+  occurred_at?: string;
   is_demo?: boolean;
 }) {
-  const { data, error } = await supabase.from("market_signals").insert(signal).select("id").single();
+  const payload = { ...signal, idempotency_key: signal.idempotency_key ?? marketSignalIdempotencyKey(signal) };
+  const { data, error } = await supabase.from("market_signals").upsert(payload, { onConflict: "idempotency_key", ignoreDuplicates: true }).select("id").maybeSingle();
   if (error) {
     console.error("[db] insertMarketSignal error:", error.message);
     return null;
   }
-  console.log(JSON.stringify({ level: "info", component: "signal", signal_id: data.id, ...signal }));
+  if (!data?.id) return null;
+  console.log(JSON.stringify({ level: "info", component: "signal", signal_id: data.id, ...payload }));
   return data.id as string;
 }
 
@@ -296,21 +324,76 @@ export async function getPendingMarketSignals(fixtureId: string) {
   return data ?? [];
 }
 
-export async function resolveMarketSignal(signal: { id: string; current_odds: number }, result: { outcome: "won" | "lost" | "push"; finalScore: string; finalOdds: number | null }) {
+export async function resolveMarketSignal(signal: { id: string; current_odds: number }, result: { outcome: "won" | "lost" | "push"; finalScore: string; finalOdds: number | null; unresolvedReason?: string | null }) {
   const roi = result.outcome === "push" ? 0 : result.outcome === "won" ? Number(signal.current_odds) - 1 : -1;
   const resolvedAt = new Date().toISOString();
-  const { error: resolutionError } = await supabase.from("signal_resolutions").insert({
+  const { error: resolutionError } = await supabase.from("signal_resolutions").upsert({
     signal_id: signal.id,
     outcome: result.outcome,
     roi_units: roi,
     final_score: result.finalScore,
     final_odds: result.finalOdds,
     resolved_at: resolvedAt,
-  });
-  if (resolutionError) console.error("[db] resolveMarketSignal insert error:", resolutionError.message);
+    unresolved_reason: result.unresolvedReason ?? null,
+  }, { onConflict: "signal_id" });
+  if (resolutionError) {
+    console.error("[db] resolveMarketSignal upsert error:", resolutionError.message);
+    return false;
+  }
   const { error: signalError } = await supabase
     .from("market_signals")
     .update({ pending_resolution: false, resolved_at: resolvedAt, outcome: result.outcome, final_score: result.finalScore, final_odds: result.finalOdds, roi_units: roi })
     .eq("id", signal.id);
-  if (signalError) console.error("[db] resolveMarketSignal update error:", signalError.message);
+  if (signalError) {
+    console.error("[db] resolveMarketSignal update error:", signalError.message);
+    return false;
+  }
+  return true;
+}
+
+export async function markMarketSignalUnsupported(signal: { id: string }, unresolvedReason: string) {
+  const resolvedAt = new Date().toISOString();
+  const { error: resolutionError } = await supabase.from("signal_resolutions").upsert({
+    signal_id: signal.id,
+    outcome: "push",
+    roi_units: 0,
+    final_score: null,
+    final_odds: null,
+    resolved_at: resolvedAt,
+    unresolved_reason: unresolvedReason,
+  }, { onConflict: "signal_id" });
+  if (resolutionError) {
+    console.error("[db] markMarketSignalUnsupported upsert error:", resolutionError.message);
+    return false;
+  }
+  const { error: signalError } = await supabase.from("market_signals").update({ pending_resolution: false, resolved_at: resolvedAt, outcome: "push", unresolved_reason: unresolvedReason }).eq("id", signal.id);
+  if (signalError) {
+    console.error("[db] markMarketSignalUnsupported update error:", signalError.message);
+    return false;
+  }
+  return true;
+}
+
+export async function getCompletedMatchesWithPendingSignals(limit = 50) {
+  const { data, error } = await supabase
+    .from("market_signals")
+    .select("*, matches!inner(home_score, away_score, finished_at, status)")
+    .eq("pending_resolution", true)
+    .eq("is_demo", false)
+    .not("matches.finished_at", "is", null)
+    .limit(limit);
+  if (error) {
+    console.error("[db] getCompletedMatchesWithPendingSignals error:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+export async function updateMarketSignalExplanation(signalId: string, explanation: string, aiProvider: string) {
+  const { error } = await supabase
+    .from("market_signals")
+    .update({ explanation, ai_provider: aiProvider })
+    .eq("id", signalId)
+    .eq("pending_resolution", true);
+  if (error) console.error("[db] updateMarketSignalExplanation error:", error.message);
 }
