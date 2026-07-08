@@ -40,15 +40,20 @@ export type ResolvedSignal = {
 export async function getAgentState() {
   try {
     const { data, error } = await supabaseServer.from("agent_state").select("*").eq("id", "live").eq("mode", "live").maybeSingle();
-    return error ? null : data ?? null;
-  } catch { return null; }
+    if (error) {
+      console.error("[queries] getAgentState error", error.message);
+      return { backend_data_status: "error", backend_data_error: error.message };
+    }
+    return data ? { ...data, backend_data_status: "ok" } : { backend_data_status: "empty" };
+  } catch (err) { console.error("[queries] getAgentState exception", err); return { backend_data_status: "error", backend_data_error: err instanceof Error ? err.message : "unknown error" }; }
 }
 
 export async function getLiveFixtures() {
   try {
     const { data, error } = await supabaseServer.from("matches").select("*").eq("is_demo", false).order("kickoff_at", { ascending: false });
-    return error ? [] : data ?? [];
-  } catch { return []; }
+    if (error) { console.error("[queries] query error", error.message); return []; }
+    return data ?? [];
+  } catch (err) { console.error("[queries] query exception", err); return []; }
 }
 
 export const getFixtures = getLiveFixtures;
@@ -62,7 +67,8 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
       .or("finished_at.not.is.null,status.in.(finished,completed,final)")
       .order("finished_at", { ascending: false, nullsFirst: false })
       .limit(limit);
-    if (error || !matches?.length) return [];
+    if (error) { console.error("[queries] getCompletedMatches error", error.message); return []; }
+    if (!matches?.length) return [];
 
     const fixtureIds = matches.map((match) => match.id);
     const [signalsRes, resolutionsRes, oddsRes] = await Promise.all([
@@ -71,6 +77,7 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
       supabaseServer.from("odds_snapshots").select("fixture_id, home_score, away_score, price, received_at").eq("is_demo", false).in("fixture_id", fixtureIds).order("received_at", { ascending: true }),
     ]);
 
+    for (const [name, res] of Object.entries({ signalsRes, resolutionsRes, oddsRes })) if (res.error) console.error(`[queries] getCompletedMatches ${name} error`, res.error.message);
     const signals = signalsRes.data ?? [];
     const resolutions = resolutionsRes.data ?? [];
     const odds = oddsRes.data ?? [];
@@ -99,14 +106,15 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
         roi: roiVals.length ? Number(roiVals.reduce((sum, value) => sum + value, 0).toFixed(2)) : null,
       };
     });
-  } catch { return []; }
+  } catch (err) { console.error("[queries] query exception", err); return []; }
 }
 
 export async function getLatestLiveSignal() {
   try {
     const { data, error } = await supabaseServer.from("market_signals").select("*").eq("is_demo", false).order("occurred_at", { ascending: false }).limit(1).maybeSingle();
-    return error ? null : data ?? null;
-  } catch { return null; }
+    if (error) { console.error("[queries] getLatestLiveSignal error", error.message); return null; }
+    return data ?? null;
+  } catch (err) { console.error("[queries] query exception", err); return null; }
 }
 
 export const getLatestSignal = getLatestLiveSignal;
@@ -119,12 +127,12 @@ export async function getResolvedSignals(limit = 12): Promise<ResolvedSignal[]> 
       .eq("market_signals.is_demo", false)
       .order("resolved_at", { ascending: false })
       .limit(limit);
-    if (error) return [];
+    if (error) { console.error("[queries] getResolvedSignals error", error.message); return []; }
     return (data ?? []).map((row) => {
       const signal = relation(row.market_signals);
       return { ...signal, outcome: row.outcome, roi_units: row.roi_units, resolved_at: row.resolved_at, final_score: row.final_score } as ResolvedSignal;
     });
-  } catch { return []; }
+  } catch (err) { console.error("[queries] query exception", err); return []; }
 }
 
 export async function getLatestResolvedSignal() {
@@ -135,8 +143,9 @@ export async function getLatestResolvedSignal() {
 export async function getRecentLiveSignals(limit = 10) {
   try {
     const { data, error } = await supabaseServer.from("market_signals").select("*").eq("is_demo", false).order("occurred_at", { ascending: false }).limit(limit);
-    return error ? [] : data ?? [];
-  } catch { return []; }
+    if (error) { console.error("[queries] getRecentLiveSignals error", error.message); return []; }
+    return data ?? [];
+  } catch (err) { console.error("[queries] query exception", err); return []; }
 }
 
 export const getRecentSignals = getRecentLiveSignals;
@@ -144,8 +153,9 @@ export const getRecentSignals = getRecentLiveSignals;
 export async function getOddsHistory(fixtureId: string, market: string, limit = 60) {
   try {
     const { data, error } = await supabaseServer.from("odds_snapshots").select("*").eq("fixture_id", fixtureId).eq("market", market).eq("is_demo", false).order("received_at", { ascending: true }).limit(limit);
-    return error ? [] : data ?? [];
-  } catch { return []; }
+    if (error) { console.error("[queries] getRecentLiveSignals error", error.message); return []; }
+    return data ?? [];
+  } catch (err) { console.error("[queries] query exception", err); return []; }
 }
 
 export async function getMatchReplay(fixtureId: string) {
@@ -156,9 +166,11 @@ export async function getMatchReplay(fixtureId: string) {
       supabaseServer.from("market_signals").select("*").eq("fixture_id", fixtureId).eq("is_demo", false).order("occurred_at", { ascending: true }),
       supabaseServer.from("signal_resolutions").select("*, market_signals!inner(id, fixture_id, is_demo)").eq("market_signals.is_demo", false).eq("market_signals.fixture_id", fixtureId).order("resolved_at", { ascending: true }),
     ]);
-    if (matchRes.error || !matchRes.data) return null;
+    if (matchRes.error) { console.error("[queries] getMatchReplay match error", matchRes.error.message); return null; }
+    for (const [name, res] of Object.entries({ oddsRes, signalsRes, resolutionsRes })) if (res.error) console.error(`[queries] getMatchReplay ${name} error`, res.error.message);
+    if (!matchRes.data) return null;
     return { match: matchRes.data, odds: oddsRes.data ?? [], signals: signalsRes.data ?? [], resolutions: resolutionsRes.data ?? [] };
-  } catch { return null; }
+  } catch (err) { console.error("[queries] query exception", err); return null; }
 }
 
 export async function getPastMatchPerformance() {
@@ -197,7 +209,7 @@ export async function getLiveSignalStats() {
     });
     const ranked = byAction.filter((x) => x.accuracy !== null).sort((a, b) => (b.accuracy ?? 0) - (a.accuracy ?? 0));
     return { completedMatches: completed.count ?? null, totalSignals: total.count ?? null, signalsToday: todaySignals.count ?? null, highConfidenceAlerts: highConf.count ?? null, totalOddsUpdatesToday: oddsToday.count ?? null, accuracy, correctSignals: wins, incorrectSignals: losses, highConfidenceAccuracy: accuracy, averageRoi, avgConfidence, strategyPerformance: byAction, bestStrategy: ranked[0]?.action ?? null, worstStrategy: ranked.at(-1)?.action ?? null };
-  } catch { return { completedMatches: null, totalSignals: null, signalsToday: null, highConfidenceAlerts: null, totalOddsUpdatesToday: null, accuracy: null, correctSignals: null, incorrectSignals: null, highConfidenceAccuracy: null, averageRoi: null, avgConfidence: null, strategyPerformance: [], bestStrategy: null, worstStrategy: null }; }
+  } catch (err) { console.error("[queries] getLiveSignalStats exception", err); return { completedMatches: null, totalSignals: null, signalsToday: null, highConfidenceAlerts: null, totalOddsUpdatesToday: null, accuracy: null, correctSignals: null, incorrectSignals: null, highConfidenceAccuracy: null, averageRoi: null, avgConfidence: null, strategyPerformance: [], bestStrategy: null, worstStrategy: null }; }
 }
 
 export const getStats = getLiveSignalStats;

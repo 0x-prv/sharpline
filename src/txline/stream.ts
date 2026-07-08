@@ -1,5 +1,5 @@
 import { NETWORK_CONFIG } from "./config.js";
-import { txlineSession } from "./client.js";
+import { getTxlineSession, isAuthFailure, recoverTxlineSession } from "./session.js";
 
 type SseMessage = { id?: string; event?: string; data: string; retry?: number };
 
@@ -75,18 +75,27 @@ async function connectStream(
 ): Promise<void> {
   const streamUrl = `${NETWORK_CONFIG.apiOrigin}/api${path}`;
 
-  const streamResponse = await fetch(streamUrl, {
-    signal,
-    headers: {
-      Authorization: `Bearer ${txlineSession.jwt}`,
-      "X-Api-Token": txlineSession.apiToken,
-      Accept: "text/event-stream",
-      "Cache-Control": "no-cache",
-    },
-  });
+  const open = async () => {
+    const session = getTxlineSession();
+    return fetch(streamUrl, {
+      signal,
+      headers: {
+        Authorization: `Bearer ${session.jwt}`,
+        "X-Api-Token": session.apiToken,
+        Accept: "text/event-stream",
+        "Cache-Control": "no-cache",
+      },
+    });
+  };
+
+  let streamResponse = await open();
+  if (!streamResponse.ok && isAuthFailure({ status: streamResponse.status })) {
+    const recovered = await recoverTxlineSession();
+    if (recovered) streamResponse = await open();
+  }
 
   if (!streamResponse.ok) {
-    throw new Error(`Stream failed [${path}]: ${streamResponse.status}`);
+    throw new Error(`Stream failed [${path}]: ${streamResponse.status}${isAuthFailure({ status: streamResponse.status }) ? " (TxLINE auth rejected; run npm run activate)" : ""}`);
   }
 
   console.log(`[stream${path}] connected`);

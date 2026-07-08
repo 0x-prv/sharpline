@@ -3,7 +3,7 @@ import { getFixturesSnapshot } from "./txline/client.js";
 import { checkForSharpMovement } from "./engine/detector.js";
 import { classifyMovement } from "./engine/correlator.js";
 import { detectMarketSignal } from "./engine/signal-engine.js";
-import { explainSignal } from "./ai/explain.js";
+import { explainSignal, fallbackExplanation } from "./ai/explain.js";
 import type { MatchState } from "./types.js";
 import { resolveSignal } from "./engine/resolver.js";
 import { anchorSignalOnChain } from "./chain/memo.js";
@@ -23,7 +23,10 @@ import {
   getHistoricalComparison,
   getPendingMarketSignals,
   resolveMarketSignal,
+  markMarketSignalUnsupported,
+  getCompletedMatchesWithPendingSignals,
 } from "./db/repository.js";
+import { ensureTxlineSessionReady } from "./txline/session.js";
 import {
   refreshFixtureWindows,
   isAnyMatchActive,
@@ -35,6 +38,7 @@ const WORLD_CUP_COMPETITION_ID = 72;
 const PRICE_SCALE = 1000;
 const MONITOR_INTERVAL_MS = 60 * 1000; // re-check every 1 min whether window ended
 const HEARTBEAT_INTERVAL_MS = 20 * 1000;
+const RECONCILIATION_INTERVAL_MS = 5 * 60 * 1000;
 
 const counters = {
   fixturesLoaded: 0,
@@ -219,8 +223,7 @@ async function handleOddsMessage(event: string, data: any) {
         reason_code: marketSignal.reasonCode,
       });
       const enrichedSignal = { ...marketSignal, historicalComparison };
-      const ai = await explainSignal(enrichedSignal);
-      await insertMarketSignal({
+      const signalPayload = {
         fixture_id: enrichedSignal.fixtureId,
         competition: enrichedSignal.competition,
         match: enrichedSignal.match,
@@ -234,16 +237,23 @@ async function handleOddsMessage(event: string, data: any) {
         confidence: enrichedSignal.confidence,
         reason_code: enrichedSignal.reasonCode,
         action: enrichedSignal.action,
-        explanation: ai.explanation,
-        ai_provider: ai.aiProvider,
+        explanation: fallbackExplanation(enrichedSignal),
+        ai_provider: "pending_explanation",
         historical_similar_count: historicalComparison.similarSignals,
         historical_success_rate: historicalComparison.historicalSuccessRate,
         historical_average_roi: historicalComparison.averageRoi,
         current_match_state: enrichedSignal.currentMatchState,
         pending_resolution: enrichedSignal.pendingResolution,
         is_demo: false,
-      });
-      counters.signalsGenerated++;
+      };
+      const signalId = await insertMarketSignal(signalPayload);
+      if (signalId) {
+        counters.signalsGenerated++;
+        explainSignal(enrichedSignal).then(async (ai) => {
+          const { updateMarketSignalExplanation } = await import("./db/repository.js");
+          await updateMarketSignalExplanation(signalId, ai.explanation, ai.aiProvider);
+        }).catch((err) => console.error("[ai] explanation enrichment failed:", err.message));
+      }
     }
 
     const detection = checkForSharpMovement(
@@ -301,6 +311,7 @@ async function handleGameFinalised(data: any) {
     const outcome = resolveSignal({ market: signal.market, selection: signal.selection }, score);
     if (outcome === null) {
       console.log(`[resolver] skipped market signal (unsupported market): ${signal.market}/${signal.selection}`);
+      await markMarketSignalUnsupported(signal, `Unsupported market: ${signal.market}/${signal.selection}`);
       continue;
     }
     await resolveMarketSignal(signal, {
@@ -381,6 +392,24 @@ async function handleScoreMessage(event: string, data: any) {
   await insertScoreEvent(scoreEvent);
 }
 
+async function reconcileCompletedMatches() {
+  const pending = await getCompletedMatchesWithPendingSignals();
+  if (!pending.length) return;
+  console.log(`[resolver] reconciliation found ${pending.length} pending signal(s) on completed matches`);
+  for (const signal of pending) {
+    const match = Array.isArray(signal.matches) ? signal.matches[0] : signal.matches;
+    const home = Number(match?.home_score ?? 0);
+    const away = Number(match?.away_score ?? 0);
+    const score = { home_h1: 0, away_h1: 0, home_total: home, away_total: away };
+    const outcome = resolveSignal({ market: signal.market, selection: signal.selection }, score);
+    if (outcome === null) {
+      await markMarketSignalUnsupported(signal, `Unsupported market: ${signal.market}/${signal.selection}`);
+      continue;
+    }
+    await resolveMarketSignal(signal, { outcome, finalScore: `${home}-${away}`, finalOdds: Number(signal.current_odds) });
+  }
+}
+
 async function saveHeartbeat() {
   const active = isAnyMatchActive();
   currentState = active ? "processing_live_match" : "waiting_for_kickoff";
@@ -445,12 +474,25 @@ async function runActiveWindow() {
 }
 
 async function main() {
+  try {
+    await ensureTxlineSessionReady();
+  } catch (err: any) {
+    workerStatus = "error";
+    txlineStatus = "offline";
+    console.error("[worker] TxLINE startup error:", err.message);
+    await upsertAgentState({ mode: "live", worker_status: "error", txline_status: "offline", notes: err.message });
+    throw err;
+  }
   await loadWorldCupFixtures();
   await refreshFixtureWindows();
   await saveHeartbeat();
   setInterval(() => {
     saveHeartbeat().catch((err) => console.error("[heartbeat] error:", err.message));
   }, HEARTBEAT_INTERVAL_MS);
+  setInterval(() => {
+    reconcileCompletedMatches().catch((err) => console.error("[resolver] reconciliation error:", err.message));
+  }, RECONCILIATION_INTERVAL_MS);
+  await reconcileCompletedMatches();
 
   console.log("[worker] scheduler started — autonomous mode");
 
