@@ -4,13 +4,14 @@ import { PageHeader } from "../../components/PageHeader";
 import { StatsRow } from "../../components/StatsRow";
 import { AgentHealth } from "../../components/AgentHealth";
 import { AnalyticsPanel } from "../../components/AnalyticsPanel";
-import { getAgentState, getRecentLiveSignals, getLiveSignalStats } from "../../lib/queries";
+import { PastMatchSignals } from "../../components/PastMatchSignals";
+import { getAgentState, getCompletedMatches, getPastMatchPerformance, getResolvedSignals } from "../../lib/queries";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 15;
 
 export default async function AnalyticsPage() {
-  const [agentState, recentSignals, stats] = await Promise.all([getAgentState(), getRecentLiveSignals(8), getLiveSignalStats()]);
+  const [agentState, resolvedSignals, performance, completedMatches] = await Promise.all([getAgentState(), getResolvedSignals(12), getPastMatchPerformance(), getCompletedMatches(8)]);
 
   return (
     <main>
@@ -18,12 +19,13 @@ export default async function AnalyticsPage() {
       <PageHeader
         eyebrow="Historical Performance"
         title="SharpLine Accuracy Analytics"
-        description="Measure signal quality over time with accuracy, confidence, strategy performance, resolved signals, and agent-level statistics."
+        description="Historical performance updates automatically after each match with completed matches analyzed, resolved outcomes, accuracy, ROI, and strategy performance."
         icon={BarChart3}
       />
       <div className="mx-auto max-w-6xl space-y-4 px-6 py-10">
-        <StatsRow stats={stats} />
-        <AnalyticsPanel stats={stats} signals={recentSignals} />
+        <StatsRow stats={performance} />
+        <AnalyticsPanel stats={performance} signals={resolvedSignals} />
+        <PastMatchSignals matches={completedMatches} />
         <AgentHealth agentState={agentState} />
       </div>
     </main>
