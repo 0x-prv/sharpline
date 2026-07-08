@@ -17,7 +17,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
           <div>
             <p className="kicker">Latest AI Signal</p>
             <div className="mt-4 flex items-center gap-3">
-              <h2 className="text-4xl font-semibold tracking-[-0.04em] text-text">{ticker(signal.selection, signal.market)}</h2>
+              <h2 className="text-4xl font-semibold tracking-[-0.04em] text-text">{ticker(signal.selection)}</h2>
               <span className={`rounded-full border px-3 py-1 font-data text-xs ${actionTone(signal.action)}`}>{side}</span>
             </div>
             <p className="mt-2 text-sm text-text-muted">{signal.match} · {formatMarketSelection(signal.market, signal.selection)}</p>
@@ -53,7 +53,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
 function EmptySignal() { return <div className="premium-card p-8"><p className="kicker">Latest AI Signal</p><div className="mt-8 space-y-3"><div className="skeleton h-9 w-44 rounded-lg" /><div className="skeleton h-4 w-3/4 rounded" /><div className="skeleton h-24 w-full rounded-2xl" /></div><p className="mt-6 text-sm leading-6 text-text-muted">No live market alerts yet. Professional empty states keep the terminal calm while Sharpline listens for material movement.</p></div>; }
 function Metric({ label, value }: { label: string; value: string }) { return <div className="bg-card p-5"><p className="text-[12px] text-text-muted">{label}</p><p className="mt-2 text-xl font-semibold text-text">{value}</p></div>; }
 function Mini({ label, value, tone = "text-text" }: { label: string; value: string; tone?: string }) { return <div className="rounded-2xl border border-border bg-bg/70 p-4"><p className="text-xs text-text-muted">{label}</p><p className={`mt-1 font-data text-lg ${tone}`}>{value}</p></div>; }
-function ticker(selection: string, market: string) { const src = `${selection} ${market}`.toUpperCase(); if (src.includes("BTC")) return "BTC"; if (src.includes("ETH")) return "ETH"; if (src.includes("SOL")) return "SOL"; return selection.split(/\s|_/)[0]?.slice(0, 6).toUpperCase() || "MKT"; }
+function ticker(selection: string) { return selection.split(/\s|_/)[0]?.slice(0, 6).toUpperCase() || "MKT"; }
 function relativeTime(value: string) { const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000)); if (seconds < 60) return `${seconds}s ago`; const m = Math.round(seconds / 60); return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; }
 function buildAnalysis(explanation: string, reasonCode: string, movement: number) { const summary = explanation || explainReason(reasonCode) || "A material market move was detected and ranked by confidence."; return [
   { title: "Summary", body: summary, icon: Radio },
