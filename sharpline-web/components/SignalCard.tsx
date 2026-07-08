@@ -2,7 +2,9 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { actionTone, explainAction, explainReason, formatMarketSelection } from "./copy";
 
 type Signal = {
+  id?: string;
   fixture_id: string;
+  competition?: string;
   match: string;
   market: string;
   selection: string;
@@ -18,6 +20,14 @@ type Signal = {
   ai_provider: string;
   is_demo: boolean;
   occurred_at: string;
+  current_match_state?: string;
+  pending_resolution?: boolean;
+  outcome?: string | null;
+  final_score?: string | null;
+  roi_units?: number | null;
+  historical_similar_count?: number;
+  historical_success_rate?: number | null;
+  historical_average_roi?: number | null;
 } | null;
 
 export function SignalCard({ signal }: { signal: Signal }) {
@@ -43,7 +53,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
     <article className="rounded-2xl border border-signal-coral/25 bg-surface p-6 shadow-2xl shadow-black/20">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Latest Alert</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Latest Alert · {signal.id ? `ID ${signal.id.slice(0, 8)}` : "Pending ID"}</p>
           <h2 className="mt-3 flex items-center gap-2 font-display text-2xl font-semibold text-text">
             <AlertTriangle className="h-5 w-5 text-signal-coral" /> Sharp Odds Movement Detected
           </h2>
@@ -54,7 +64,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
       </div>
 
       <p className="mt-5 font-display text-xl text-text">{signal.match}</p>
-      <p className="mt-1 text-sm text-text-muted">{formatMarketSelection(signal.market, signal.selection)}</p>
+      <p className="mt-1 text-sm text-text-muted">{signal.competition ?? "FIFA World Cup 2026"} · {formatMarketSelection(signal.market, signal.selection)}</p>
 
       <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl border border-border bg-bg/60 p-4">
         <Metric label="Previous Odds" value={Number(signal.previous_odds).toFixed(2)} />
@@ -74,6 +84,17 @@ export function SignalCard({ signal }: { signal: Signal }) {
         </div>
       </div>
 
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-border bg-bg/50 p-4">
+          <p className="text-xs text-text-muted">Match State</p>
+          <p className="mt-2 font-display text-xl font-semibold text-text">{signal.current_match_state ?? "Live"}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-bg/50 p-4">
+          <p className="text-xs text-text-muted">Resolution</p>
+          <p className="mt-2 text-sm font-semibold text-text">{signal.pending_resolution === false ? `${signal.outcome ?? "resolved"}${signal.final_score ? ` · FT ${signal.final_score}` : ""}` : "Pending automatic resolution"}</p>
+        </div>
+      </div>
+
       <div className="mt-6">
         <p className="font-display text-sm font-medium text-text">Why was this flagged?</p>
         <div className="mt-3 space-y-2">
@@ -84,8 +105,13 @@ export function SignalCard({ signal }: { signal: Signal }) {
       </div>
 
       <div className="mt-6 rounded-xl border border-border bg-bg/50 p-4">
-        <p className="text-xs text-text-muted">Possible interpretation</p>
+        <p className="text-xs text-text-muted">AI explanation with historical comparison</p>
         <p className="mt-2 text-sm leading-6 text-text">{signal.explanation || explainReason(signal.reason_code) || "Professional market participants may have entered the market."}</p>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border bg-bg/50 p-4">
+        <p className="text-xs text-text-muted">Historical baseline</p>
+        <p className="mt-2 text-sm text-text">{signal.historical_similar_count ?? 0} similar resolved signals · Success {signal.historical_success_rate ?? "n/a"}% · Avg ROI {signal.historical_average_roi ?? "n/a"}</p>
       </div>
     </article>
   );

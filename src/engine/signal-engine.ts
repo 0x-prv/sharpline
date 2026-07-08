@@ -44,6 +44,7 @@ export function detectMarketSignal(event: OddsEvent, match: MatchState): Omit<Ma
 
   return {
     fixtureId: event.fixtureId,
+    competition: "FIFA World Cup 2026",
     match: event.match,
     market: event.market,
     selection: event.selection,
@@ -56,6 +57,8 @@ export function detectMarketSignal(event: OddsEvent, match: MatchState): Omit<Ma
     reasonCode,
     action,
     occurredAt: new Date(event.ts).toISOString(),
+    currentMatchState: `${event.homeScore}-${event.awayScore}`,
+    pendingResolution: true,
     isDemo: Boolean(event.isDemo),
   };
 }

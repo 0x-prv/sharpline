@@ -18,8 +18,17 @@ export type MatchState = {
   isDemo?: boolean;
 };
 
+export type HistoricalComparison = {
+  similarSignals: number;
+  historicalSuccessRate: number | null;
+  averageRoi: number | null;
+  examples: Array<{ match: string; market: string; selection: string; outcome: string; roi_units: number; occurred_at: string }>;
+};
+
 export type MarketSignal = {
+  signalId?: string;
   fixtureId: string;
+  competition: string;
   match: string;
   market: string;
   selection: string;
@@ -33,7 +42,10 @@ export type MarketSignal = {
   action: SignalAction;
   explanation: string;
   aiProvider: "groq" | "fallback";
+  historicalComparison?: HistoricalComparison;
   occurredAt: string;
+  currentMatchState: string;
+  pendingResolution: boolean;
   isDemo: boolean;
 };
 

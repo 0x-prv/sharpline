@@ -1,7 +1,10 @@
 import type { MarketSignal } from "../types.js";
 
 function fallback(signal: Omit<MarketSignal, "explanation" | "aiProvider">): string {
-  return `${signal.action}: ${signal.reasonCode} on ${signal.match}. ${signal.market}/${signal.selection} moved ${signal.direction} from ${signal.previousOdds.toFixed(2)} to ${signal.currentOdds.toFixed(2)} (${signal.movementPct.toFixed(1)}%). Severity=${signal.severity}, confidence=${signal.confidence}%.`;
+  const history = signal.historicalComparison
+    ? ` Historical baseline: ${signal.historicalComparison.similarSignals} similar resolved signal(s), success rate ${signal.historicalComparison.historicalSuccessRate ?? "n/a"}%, avg ROI ${signal.historicalComparison.averageRoi ?? "n/a"}.`
+    : "";
+  return `${signal.action}: ${signal.reasonCode} on ${signal.match}. ${signal.market}/${signal.selection} moved ${signal.direction} from ${signal.previousOdds.toFixed(2)} to ${signal.currentOdds.toFixed(2)} (${signal.movementPct.toFixed(1)}%). Severity=${signal.severity}, confidence=${signal.confidence}%. Current match state ${signal.currentMatchState}; pending automatic resolution.${history}`;
 }
 
 export async function explainSignal(signal: Omit<MarketSignal, "explanation" | "aiProvider">): Promise<Pick<MarketSignal, "explanation" | "aiProvider">> {
@@ -16,7 +19,7 @@ export async function explainSignal(signal: Omit<MarketSignal, "explanation" | "
         model: process.env.GROQ_MODEL ?? "llama-3.1-8b-instant",
         temperature: 0.2,
         messages: [
-          { role: "system", content: "Explain sports market signals for a trading desk. Do not choose actions; the deterministic engine already chose the action. Be concise and never imply betting advice." },
+          { role: "system", content: "Explain sports market signals for a trading desk. Do not choose actions; the deterministic engine already chose the action. Use any supplied historical statistics as context, but never invent data. Be concise and never imply betting advice." },
           { role: "user", content: JSON.stringify(signal) },
         ],
       }),

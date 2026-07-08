@@ -45,16 +45,34 @@ export async function getLiveSignalStats() {
   try {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    const { count: totalSignals } = await supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false);
-    const { count: signalsToday } = await supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false).gte("occurred_at", today.toISOString());
-    const { count: highConfidenceAlerts } = await supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false).gte("confidence", 85);
-    const { data: resolutions } = await supabaseServer.from("signal_resolutions").select("outcome, market_signals!inner(is_demo)").eq("market_signals.is_demo", false);
-    const resolved = resolutions ?? [];
-    const wins = resolved.filter((r) => r.outcome === "won").length;
-    const losses = resolved.filter((r) => r.outcome === "lost").length;
+    const [total, todaySignals, highConf, oddsToday, signals, resolutions] = await Promise.all([
+      supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false),
+      supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false).gte("occurred_at", today.toISOString()),
+      supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false).gte("confidence", 85),
+      supabaseServer.from("odds_snapshots").select("*", { count: "exact", head: true }).eq("is_demo", false).gte("received_at", today.toISOString()),
+      supabaseServer.from("market_signals").select("action, confidence, movement_pct, match, occurred_at, outcome, roi_units, resolved_at").eq("is_demo", false),
+      supabaseServer.from("signal_resolutions").select("outcome, roi_units, resolved_at, market_signals!inner(is_demo, action, market, selection, confidence, occurred_at)").eq("market_signals.is_demo", false),
+    ]);
+    const resolved = resolutions.data ?? [];
+    const decisive = resolved.filter((r) => r.outcome === "won" || r.outcome === "lost");
+    const wins = decisive.filter((r) => r.outcome === "won").length;
+    const losses = decisive.filter((r) => r.outcome === "lost").length;
     const accuracy = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null;
-    return { totalSignals: totalSignals ?? null, signalsToday: signalsToday ?? null, highConfidenceAlerts: highConfidenceAlerts ?? null, accuracy, correctSignals: wins, incorrectSignals: losses, highConfidenceAccuracy: accuracy };
-  } catch { return { totalSignals: null, signalsToday: null, highConfidenceAlerts: null, accuracy: null, correctSignals: null, incorrectSignals: null, highConfidenceAccuracy: null }; }
+    const roiVals = resolved.map((r) => Number(r.roi_units ?? 0));
+    const averageRoi = roiVals.length ? Number((roiVals.reduce((a, b) => a + b, 0) / roiVals.length).toFixed(2)) : null;
+    const allSignals = signals.data ?? [];
+    const avgConfidence = allSignals.length ? Math.round(allSignals.reduce((sum, s) => sum + Number(s.confidence), 0) / allSignals.length) : null;
+    const signalAction = (row: { market_signals: { action: string } | Array<{ action: string }> }) =>
+      Array.isArray(row.market_signals) ? row.market_signals[0]?.action : row.market_signals.action;
+    const byAction = ["FOLLOW", "WATCH", "ALERT", "FADE"].map((action) => {
+      const rows = resolved.filter((r) => signalAction(r) === action);
+      const dec = rows.filter((r) => r.outcome === "won" || r.outcome === "lost");
+      const actionWins = dec.filter((r) => r.outcome === "won").length;
+      return { action, signals: allSignals.filter((s) => s.action === action).length, resolved: rows.length, accuracy: dec.length ? Math.round((actionWins / dec.length) * 100) : null, averageRoi: rows.length ? Number((rows.reduce((sum, r) => sum + Number(r.roi_units ?? 0), 0) / rows.length).toFixed(2)) : null };
+    });
+    const ranked = byAction.filter((x) => x.accuracy !== null).sort((a, b) => (b.accuracy ?? 0) - (a.accuracy ?? 0));
+    return { totalSignals: total.count ?? null, signalsToday: todaySignals.count ?? null, highConfidenceAlerts: highConf.count ?? null, totalOddsUpdatesToday: oddsToday.count ?? null, accuracy, correctSignals: wins, incorrectSignals: losses, highConfidenceAccuracy: accuracy, averageRoi, avgConfidence, strategyPerformance: byAction, bestStrategy: ranked[0]?.action ?? null, worstStrategy: ranked.at(-1)?.action ?? null };
+  } catch { return { totalSignals: null, signalsToday: null, highConfidenceAlerts: null, totalOddsUpdatesToday: null, accuracy: null, correctSignals: null, incorrectSignals: null, highConfidenceAccuracy: null, averageRoi: null, avgConfidence: null, strategyPerformance: [], bestStrategy: null, worstStrategy: null }; }
 }
 
 export const getStats = getLiveSignalStats;

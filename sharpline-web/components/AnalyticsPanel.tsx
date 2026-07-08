@@ -9,6 +9,8 @@ type Stats = {
   incorrectSignals?: number | null;
   accuracy: number | null;
   highConfidenceAccuracy?: number | null;
+  averageRoi?: number | null;
+  strategyPerformance?: Array<{ action: string; signals: number; resolved: number; accuracy: number | null; averageRoi: number | null }>;
 };
 
 type Signal = {
@@ -21,10 +23,9 @@ type Signal = {
 };
 
 export function AnalyticsPanel({ stats, signals }: { stats: Stats; signals: Signal[] }) {
-  const strategyData = ["FOLLOW", "WATCH", "ALERT"].map((strategy) => ({
-    strategy,
-    signals: signals.filter((signal) => signal.action === strategy).length,
-  }));
+  const strategyData = stats.strategyPerformance?.length
+    ? stats.strategyPerformance.map((item) => ({ strategy: item.action, signals: item.signals, accuracy: item.accuracy, averageRoi: item.averageRoi }))
+    : ["FOLLOW", "WATCH", "ALERT"].map((strategy) => ({ strategy, signals: signals.filter((signal) => signal.action === strategy).length, accuracy: null, averageRoi: null }));
 
   const accuracyData = [
     { label: "Correct", value: stats.correctSignals ?? 0 },
@@ -62,7 +63,7 @@ export function AnalyticsPanel({ stats, signals }: { stats: Stats; signals: Sign
             <div key={item.strategy} className="flex items-center justify-between rounded-xl border border-border bg-bg/50 p-4">
               <div>
                 <p className={`inline-flex rounded-full border px-3 py-1 text-sm font-semibold ${actionTone(item.strategy)}`}>{explainAction(item.strategy)}</p>
-                <p className="mt-2 text-xs text-text-muted">Autonomous decision category</p>
+                <p className="mt-2 text-xs text-text-muted">Accuracy {item.accuracy ?? "n/a"}% · ROI {item.averageRoi ?? "n/a"}</p>
               </div>
               <p className="font-display text-2xl font-semibold text-text">{item.signals}</p>
             </div>
