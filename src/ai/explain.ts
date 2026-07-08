@@ -26,7 +26,7 @@ export async function explainSignal(signal: Omit<MarketSignal, "explanation" | "
         model: process.env.GROQ_MODEL ?? "llama-3.1-8b-instant",
         temperature: 0.2,
         messages: [
-          { role: "system", content: "Explain sports market signals for a trading desk. Do not choose actions; the deterministic engine already chose the action. Use any supplied historical statistics as context, but never invent data. Be concise and never imply betting advice." },
+          { role: "system", content: "Explain FIFA World Cup match intelligence signals powered by TxLINE scores and odds. Do not choose actions; the deterministic engine already chose the action. Use supplied historical statistics as context, never invent data, stay concise, and never imply betting advice." },
           { role: "user", content: JSON.stringify(signal) },
         ],
       }),

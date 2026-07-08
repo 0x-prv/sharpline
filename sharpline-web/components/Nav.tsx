@@ -24,13 +24,13 @@ export function Nav() {
           </div>
           <div className="leading-none">
             <span className="block text-[15px] font-semibold tracking-tight text-text">Sharpline</span>
-            <span className="hidden font-data text-[10px] uppercase tracking-[.16em] text-text-muted sm:block">Market OS</span>
+            <span className="hidden font-data text-[10px] uppercase tracking-[.16em] text-text-muted sm:block">World Cup OS</span>
           </div>
         </Link>
 
         <div className="hidden min-w-[280px] max-w-md flex-1 items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-text-muted md:flex">
           <Search className="h-4 w-4" />
-          <span className="text-sm">Search signals, markets, narratives</span>
+          <span className="text-sm">Search fixtures, signals, match narratives</span>
           <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-border bg-bg px-2 py-0.5 font-data text-[10px]"><Command className="h-3 w-3" />K</span>
         </div>
 
