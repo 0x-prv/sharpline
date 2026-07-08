@@ -5,37 +5,49 @@ import { SignalCard } from "../../components/SignalCard";
 import { AgentFlowLog } from "../../components/AgentFlowLog";
 import { MatchTimeline } from "../../components/MatchTimeline";
 import { OddsChart } from "../../components/OddsChart";
-import { getLatestLiveSignal, getOddsHistoryForLatestSignal, getRecentLiveSignals } from "../../lib/queries";
+import { PastMatchSignals } from "../../components/PastMatchSignals";
+import { MatchReplay } from "../../components/MatchReplay";
+import { getCompletedMatches, getLatestLiveSignal, getLatestResolvedSignal, getMatchReplay, getOddsHistoryForLatestSignal, getRecentLiveSignals, getResolvedSignals } from "../../lib/queries";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 15;
 
 export default async function SignalsPage() {
-  const [latestSignal, recentSignals] = await Promise.all([getLatestLiveSignal(), getRecentLiveSignals(10)]);
+  const [latestSignal, latestResolvedSignal, recentSignals, resolvedSignals, completedMatches] = await Promise.all([
+    getLatestLiveSignal(),
+    getLatestResolvedSignal(),
+    getRecentLiveSignals(10),
+    getResolvedSignals(10),
+    getCompletedMatches(6),
+  ]);
+  const primarySignal = latestSignal ?? latestResolvedSignal;
   const oddsTicks = latestSignal ? await getOddsHistoryForLatestSignal(latestSignal, 60) : [];
+  const replay = completedMatches[0] ? await getMatchReplay(completedMatches[0].id) : null;
 
   return (
     <main>
       <Nav />
       <PageHeader
-        eyebrow="Live Intelligence"
+        eyebrow="Live + Historical Intelligence"
         title="Autonomous Signal Decisions"
-        description="See what the SharpLine agent is deciding right now, including market, selection, movement, confidence, reason, and human-readable AI explanation."
+        description="Resolved signals from completed fixtures appear first when no live signal exists, while SharpLine continues monitoring the next kickoff."
         icon={Radio}
       />
       <div className="mx-auto max-w-6xl space-y-4 px-6 py-10">
         {!latestSignal && (
           <section className="rounded-2xl border border-border bg-surface p-8 text-center">
-            <h2 className="font-display text-2xl font-semibold text-text">Monitoring live fixtures...</h2>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-text-muted">The first signal will appear automatically when unusual market movement is detected.</p>
+            <h2 className="font-display text-2xl font-semibold text-text">Reviewing completed matches while monitoring the next kickoff.</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-text-muted">Resolved signals from completed fixtures are shown below until the next live market alert is generated.</p>
           </section>
         )}
+        <PastMatchSignals matches={completedMatches} />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <SignalCard signal={latestSignal} />
+          <SignalCard signal={primarySignal} />
           <OddsChart ticks={oddsTicks} />
         </div>
-        <MatchTimeline signal={latestSignal} />
-        <AgentFlowLog signals={recentSignals} mode="timeline" />
+        <MatchReplay replay={replay} />
+        <MatchTimeline signal={primarySignal} />
+        <AgentFlowLog signals={latestSignal ? recentSignals : resolvedSignals} mode="timeline" />
       </div>
     </main>
   );
