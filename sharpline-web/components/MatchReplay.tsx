@@ -48,7 +48,7 @@ function buildEvents(replay: NonNullable<Replay>) {
   });
   if (replay.match.finished_at) events.push({ key: "final", at: replay.match.finished_at, time: formatTime(replay.match.finished_at), title: "Final score", body: `Match finished ${formatFinalScore(replay)}.`, icon: Trophy });
   replay.resolutions.forEach((resolution, index) => events.push({ key: `resolution-${index}`, at: resolution.resolved_at, time: formatTime(resolution.resolved_at), title: "Resolution result", body: `${resolution.outcome.toUpperCase()} · ROI ${Number(resolution.roi_units ?? 0).toFixed(2)} units.`, icon: LineChart }));
-  return events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()).map(({ at: _at, ...event }) => event);
+  return events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()).map(({ at, ...event }) => { void at; return event; });
 }
 
 function formatTime(value: string) {

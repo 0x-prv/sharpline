@@ -88,7 +88,6 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
       const decisive = matchResolutions.filter((row) => row.outcome === "won" || row.outcome === "lost");
       const wins = decisive.filter((row) => row.outcome === "won").length;
       const matchOdds = odds.filter((tick) => tick.fixture_id === match.id);
-      const first = matchOdds[0];
       const last = matchOdds.at(-1);
       const finalScore = matchResolutions.find((row) => row.final_score)?.final_score ?? (match.home_score !== null && match.away_score !== null ? `${match.home_score}-${match.away_score}` : last ? `${last.home_score ?? 0}-${last.away_score ?? 0}` : null);
       const best = matchSignals.slice().sort((a, b) => Number(b.confidence ?? 0) - Number(a.confidence ?? 0))[0];

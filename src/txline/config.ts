@@ -2,8 +2,13 @@ import { PublicKey } from "@solana/web3.js";
 
 export type TxlineNetwork = "mainnet" | "devnet";
 
-export const NETWORK: TxlineNetwork =
-  (process.env.TXLINE_NETWORK as TxlineNetwork) || "mainnet";
+const configuredNetwork = process.env.TXLINE_NETWORK ?? "mainnet";
+
+if (configuredNetwork !== "mainnet" && configuredNetwork !== "devnet") {
+  throw new Error(`Invalid TXLINE_NETWORK "${configuredNetwork}". Expected "mainnet" or "devnet".`);
+}
+
+export const NETWORK: TxlineNetwork = configuredNetwork;
 
 export const CONFIG = {
   mainnet: {
