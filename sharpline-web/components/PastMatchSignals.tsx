@@ -6,7 +6,7 @@ export function PastMatchSignals({ matches }: { matches: CompletedMatch[] }) {
     <section className="rounded-2xl border border-border bg-surface p-6">
       <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Past Match Signals</p>
       <h2 className="mt-3 font-display text-2xl font-semibold text-text">Resolved signals from completed fixtures.</h2>
-      <p className="mt-2 text-sm leading-6 text-text-muted">Replay previous market movement and review accuracy, ROI, and best signals from stored production outcomes.</p>
+      <p className="mt-2 text-sm leading-6 text-text-muted">Replay previous TxLINE odds movement and review accuracy, confidence, and best match signals from stored production outcomes.</p>
       <div className="mt-5 space-y-3">
         {matches.length === 0 ? (
           <div className="rounded-xl border border-border bg-bg/50 p-6 text-sm text-text-muted">Historical performance updates automatically after each match.</div>

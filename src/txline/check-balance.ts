@@ -6,7 +6,7 @@ async function main() {
   const connection = new Connection(NETWORK_CONFIG.rpcUrl, "confirmed");
   const balance = await connection.getBalance(walletKeypair.publicKey);
   console.log("Wallet address:", walletKeypair.publicKey.toBase58());
-  console.log("SOL balance:", balance / 1e9, "SOL");
+  console.log("TxLINE wallet balance (lamports):", balance);
 }
 
 main().catch(console.error);

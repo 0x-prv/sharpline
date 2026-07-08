@@ -23,8 +23,8 @@ export default async function OverviewPage() {
       <Hero stats={stats} hasActiveMatch={hasActiveMatch} agentState={agentState} signals={recentSignals} />
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:py-10">
         <section className="grid gap-4 lg:grid-cols-3">
-          <Panel title="Latest Signals" subtitle="Newest AI-generated market signals">
-            <div className="space-y-2">{recentSignals.slice(0, 3).map((signal) => <SignalRow key={signal.id ?? signal.occurred_at} label={`${signal.selection} · ${signal.action}`} value={`${signal.confidence}%`} meta={signal.match} />)}{recentSignals.length === 0 ? <EmptyRow text="Sharpline is listening for the next material market signal." /> : null}</div>
+          <Panel title="Latest Signals" subtitle="Newest AI-generated match signals">
+            <div className="space-y-2">{recentSignals.slice(0, 3).map((signal) => <SignalRow key={signal.id ?? signal.occurred_at} label={`${signal.selection} · ${signal.action}`} value={`${signal.confidence}%`} meta={signal.match} />)}{recentSignals.length === 0 ? <EmptyRow text="Sharpline is listening for the next material TxLINE match signal." /> : null}</div>
           </Panel>
           <Panel title="Recent Detections" subtitle="Autonomous movement capture">
             <div className="space-y-2">{recentSignals.slice(0, 3).map((signal) => <SignalRow key={`${signal.occurred_at}-${signal.market}`} label={signal.market.replaceAll("_", " ")} value={`${Number(signal.movement_pct) > 0 ? "+" : ""}${Number(signal.movement_pct).toFixed(1)}%`} meta={new Date(signal.occurred_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} />)}{recentSignals.length === 0 ? <EmptyRow text="Detections appear here as odds movement crosses Sharpline thresholds." /> : null}</div>

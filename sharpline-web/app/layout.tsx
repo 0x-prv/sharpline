@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sharpline — Crypto-native market intelligence",
+  title: "Sharpline — FIFA World Cup match intelligence",
   description:
-    "A premium autonomous intelligence terminal for live market signals, AI analysis, and historical performance.",
+    "A TxLINE-powered FIFA World Cup intelligence product for live match signals, odds movement, AI analysis, and autonomous monitoring.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
