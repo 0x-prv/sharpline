@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "tsx src/worker.ts",
     "worker": "tsx src/worker.ts",
     "dev": "tsx watch src/worker.ts",
     "activate": "tsx src/txline/activate-cli.ts",
@@ -20,12 +21,12 @@
     "bs58": "^6.0.0",
     "dotenv": "^16.4.5",
     "eventsource": "^4.1.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "tsx": "^4.19.1"
   },
   "devDependencies": {
     "@types/eventsource": "^1.1.15",
     "@types/node": "^20.14.10",
-    "tsx": "^4.19.1",
     "typescript": "^5.5.4"
   }
 }
