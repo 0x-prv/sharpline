@@ -3,17 +3,20 @@ import { Nav } from "../../components/Nav";
 import { PageHeader } from "../../components/PageHeader";
 import { SignalCard } from "../../components/SignalCard";
 import { AgentFlowLog } from "../../components/AgentFlowLog";
-import { MatchTimeline } from "../../components/MatchTimeline";
+import { MatchMomentumTimeline, MOMENTUM_TIMELINE_EMPTY_MESSAGE } from "../../components/MatchMomentumTimeline";
+import { AutonomousMonitoringConsole } from "../../components/AutonomousMonitoringConsole";
 import { OddsChart } from "../../components/OddsChart";
 import { PastMatchSignals } from "../../components/PastMatchSignals";
 import { MatchReplay } from "../../components/MatchReplay";
-import { getCompletedMatches, getLatestLiveSignal, getLatestResolvedSignal, getMatchReplay, getOddsHistoryForLatestSignal, getRecentLiveSignals, getResolvedSignals } from "../../lib/queries";
+import { getAgentState, getCompletedMatches, getLatestLiveSignal, getLatestResolvedSignal, getLiveFixtures, getMatchMomentumTimeline, getMatchReplay, getOddsHistoryForLatestSignal, getRecentLiveSignals, getResolvedSignals } from "../../lib/queries";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 15;
 
 export default async function SignalsPage() {
-  const [latestSignal, latestResolvedSignal, recentSignals, resolvedSignals, completedMatches] = await Promise.all([
+  const [agentState, fixtures, latestSignal, latestResolvedSignal, recentSignals, resolvedSignals, completedMatches] = await Promise.all([
+    getAgentState(),
+    getLiveFixtures(),
     getLatestLiveSignal(),
     getLatestResolvedSignal(),
     getRecentLiveSignals(10),
@@ -22,7 +25,11 @@ export default async function SignalsPage() {
   ]);
   const primarySignal = latestSignal ?? latestResolvedSignal;
   const oddsTicks = latestSignal ? await getOddsHistoryForLatestSignal(latestSignal, 60) : [];
-  const replay = completedMatches[0] ? await getMatchReplay(completedMatches[0].id) : null;
+  const timelineFixtureId = primarySignal?.fixture_id ?? completedMatches[0]?.id ?? null;
+  const [replay, momentumTimeline] = await Promise.all([
+    completedMatches[0] ? getMatchReplay(completedMatches[0].id) : Promise.resolve(null),
+    timelineFixtureId ? getMatchMomentumTimeline(timelineFixtureId) : Promise.resolve(null),
+  ]);
 
   return (
     <main>
@@ -46,7 +53,7 @@ export default async function SignalsPage() {
           <OddsChart ticks={oddsTicks} />
         </div>
         <MatchReplay replay={replay} />
-        <MatchTimeline signal={primarySignal} />
+        {momentumTimeline ? <MatchMomentumTimeline timeline={momentumTimeline} /> : <div className="space-y-4"><section className="rounded-2xl border border-border bg-surface p-6"><p className="text-xs uppercase tracking-[0.2em] text-text-muted">Match Momentum Timeline</p><p className="mt-3 text-sm leading-6 text-text-muted">{MOMENTUM_TIMELINE_EMPTY_MESSAGE}</p></section><AutonomousMonitoringConsole agentState={agentState} fixtures={fixtures} recentSignals={latestSignal ? recentSignals : resolvedSignals} /></div>}
         <AgentFlowLog signals={latestSignal ? recentSignals : resolvedSignals} mode="timeline" />
       </div>
     </main>

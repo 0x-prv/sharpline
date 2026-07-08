@@ -222,3 +222,70 @@ function relation<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? value[0] ?? null : value;
 }
+
+export type MatchMomentumPoint = { key: string; label: string; timestamp: string | null; minute: number | null; momentum: number };
+export type MatchMomentumMarker = { key: string; label: string; momentum: number; title: string; kind: "event" | "signal" | "analysis" };
+export type MatchMomentumTimelineData = { fixtureId: string; matchLabel: string; points: MatchMomentumPoint[]; markers: MatchMomentumMarker[] };
+
+type TimelineRow = Record<string, unknown>;
+
+export async function getMatchMomentumTimeline(fixtureId: string): Promise<MatchMomentumTimelineData | null> {
+  try {
+    const [matchRes, insightsRes, eventsRes, signalsRes] = await Promise.all([
+      supabaseServer.from("matches").select("id, home_team, away_team, is_demo").eq("is_demo", false).eq("id", fixtureId).maybeSingle(),
+      supabaseServer.from("match_insights").select("*").eq("fixture_id", fixtureId).eq("is_demo", false).order("created_at", { ascending: true }).limit(120),
+      supabaseServer.from("match_events").select("*").eq("fixture_id", fixtureId).eq("is_demo", false).order("occurred_at", { ascending: true }).limit(120),
+      supabaseServer.from("market_signals").select("id, fixture_id, action, confidence, movement_pct, occurred_at, is_demo").eq("fixture_id", fixtureId).eq("is_demo", false).order("occurred_at", { ascending: true }).limit(120),
+    ]);
+    if (matchRes.error) { console.error("[queries] getMatchMomentumTimeline match error", matchRes.error.message); return null; }
+    if (insightsRes.error) { console.error("[queries] getMatchMomentumTimeline insights error", insightsRes.error.message); return null; }
+    if (!matchRes.data || matchRes.data.is_demo) return null;
+
+    const points = (insightsRes.data ?? []).map(toMomentumPoint).filter((point): point is MatchMomentumPoint => Boolean(point)).sort(compareTimelinePoints);
+    if (points.length < 2) return null;
+
+    const markers: MatchMomentumMarker[] = [];
+    if (eventsRes.error) console.error("[queries] getMatchMomentumTimeline events error", eventsRes.error.message);
+    else for (const event of eventsRes.data ?? []) pushTimelineMarker(markers, event, points, "event");
+    if (signalsRes.error) console.error("[queries] getMatchMomentumTimeline signals error", signalsRes.error.message);
+    else for (const signal of signalsRes.data ?? []) pushTimelineMarker(markers, signal, points, "signal");
+    for (const insight of insightsRes.data ?? []) pushTimelineMarker(markers, insight, points, "analysis");
+
+    return { fixtureId, matchLabel: `${matchRes.data.home_team} vs ${matchRes.data.away_team}`, points, markers: dedupeMarkers(markers).slice(0, 12) };
+  } catch (err) { console.error("[queries] getMatchMomentumTimeline exception", err); return null; }
+}
+
+function toMomentumPoint(row: TimelineRow): MatchMomentumPoint | null {
+  const momentum = numberFrom(row.momentum_score ?? row.momentum ?? row.momentum_value ?? row.home_momentum ?? row.signal_strength);
+  if (momentum === null) return null;
+  const minute = numberFrom(row.minute ?? row.match_minute ?? row.elapsed_minute);
+  const timestamp = stringFrom(row.event_timestamp ?? row.occurred_at ?? row.created_at ?? row.generated_at ?? row.received_at);
+  if (minute === null && !timestamp) return null;
+  const key = timelineKey(minute, timestamp);
+  return { key, label: minute !== null ? `${minute}'` : clockLabel(timestamp!), timestamp, minute, momentum };
+}
+
+function pushTimelineMarker(markers: MatchMomentumMarker[], row: TimelineRow, points: MatchMomentumPoint[], kind: MatchMomentumMarker["kind"]) {
+  const minute = numberFrom(row.minute ?? row.match_minute ?? row.elapsed_minute);
+  const timestamp = stringFrom(row.event_timestamp ?? row.occurred_at ?? row.created_at ?? row.generated_at ?? row.received_at);
+  if (minute === null && !timestamp) return;
+  const nearest = nearestPoint(points, minute, timestamp);
+  if (!nearest) return;
+  markers.push({ key: `${kind}-${String(row.id ?? markers.length)}-${nearest.key}`, label: nearest.label, momentum: nearest.momentum, title: markerTitle(row, kind), kind });
+}
+
+function nearestPoint(points: MatchMomentumPoint[], minute: number | null, timestamp: string | null) {
+  if (minute !== null) return points.slice().sort((a, b) => Math.abs((a.minute ?? 9999) - minute) - Math.abs((b.minute ?? 9999) - minute))[0] ?? null;
+  const target = timestamp ? new Date(timestamp).getTime() : NaN;
+  if (!Number.isFinite(target)) return null;
+  return points.filter((p) => p.timestamp).sort((a, b) => Math.abs(new Date(a.timestamp!).getTime() - target) - Math.abs(new Date(b.timestamp!).getTime() - target))[0] ?? null;
+}
+
+function markerTitle(row: TimelineRow, kind: MatchMomentumMarker["kind"]) { return stringFrom(row.title ?? row.event_type ?? row.type ?? row.action ?? row.summary ?? row.reason_code) ?? (kind === "signal" ? "Signal generated" : kind === "analysis" ? "Match insight generated" : "Match event"); }
+function dedupeMarkers(markers: MatchMomentumMarker[]) { const seen = new Set<string>(); return markers.filter((marker) => { const key = `${marker.kind}-${marker.label}-${marker.title}`; if (seen.has(key)) return false; seen.add(key); return true; }); }
+function compareTimelinePoints(a: MatchMomentumPoint, b: MatchMomentumPoint) { if (a.minute !== null && b.minute !== null) return a.minute - b.minute; return dateMs(a.timestamp) - dateMs(b.timestamp); }
+function timelineKey(minute: number | null, timestamp: string | null) { return minute !== null ? `m-${minute}` : `t-${timestamp}`; }
+function clockLabel(value: string) { return new Date(value).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "UTC" }); }
+function numberFrom(value: unknown) { const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN; return Number.isFinite(parsed) ? parsed : null; }
+function stringFrom(value: unknown) { return typeof value === "string" && value.length > 0 ? value : null; }
+function dateMs(value: string | null) { return value ? new Date(value).getTime() || 0 : 0; }
