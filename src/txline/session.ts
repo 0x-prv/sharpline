@@ -22,6 +22,17 @@ export function getTxlineSession(): TxlineSession {
 }
 
 export async function loadTxlineSession(): Promise<TxlineSession> {
+  const envSession = process.env.TXLINE_SESSION_JSON;
+  if (envSession) {
+    try {
+      const parsed = JSON.parse(envSession);
+      if (!isSession(parsed)) throw new Error("TXLINE_SESSION_JSON must contain non-empty jwt and apiToken fields");
+      session = parsed;
+      return parsed;
+    } catch (err: any) {
+      throw new Error(`TxLINE session unavailable: invalid TXLINE_SESSION_JSON (${err?.message ?? String(err)})`);
+    }
+  }
   try {
     const raw = await readFile(sessionPath, "utf-8");
     const parsed = JSON.parse(raw);
