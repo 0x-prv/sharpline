@@ -241,12 +241,13 @@ async function handleOddsMessage(event: string, data: any) {
         reason_code: enrichedSignal.reasonCode,
         action: enrichedSignal.action,
         explanation: fallbackExplanation(enrichedSignal),
-        ai_provider: "pending_explanation",
+        ai_provider: "fallback" as const,
         historical_similar_count: historicalComparison.similarSignals,
         historical_success_rate: historicalComparison.historicalSuccessRate,
         historical_average_roi: historicalComparison.averageRoi,
         current_match_state: enrichedSignal.currentMatchState,
         pending_resolution: enrichedSignal.pendingResolution,
+        occurred_at: enrichedSignal.occurredAt,
         is_demo: false,
       };
       const signalId = await insertMarketSignal(signalPayload);

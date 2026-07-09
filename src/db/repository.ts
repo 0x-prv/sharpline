@@ -275,7 +275,7 @@ export async function insertMarketSignal(signal: {
   reason_code: string;
   action: string;
   explanation: string;
-  ai_provider: string;
+  ai_provider: "groq" | "fallback";
   historical_similar_count?: number;
   historical_success_rate?: number | null;
   historical_average_roi?: number | null;
