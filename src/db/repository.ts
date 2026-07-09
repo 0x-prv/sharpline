@@ -345,12 +345,54 @@ export async function getPendingMarketSignals(fixtureId: string) {
     .from("market_signals")
     .select("*")
     .eq("fixture_id", fixtureId)
+    .eq("is_demo", false)
     .eq("pending_resolution", true);
   if (error) {
     console.error("[db] getPendingMarketSignals error:", error.message);
     return [];
   }
   return data ?? [];
+}
+
+export async function getUnresolvedMarketSignalsForFixture(fixtureId: string) {
+  const { data: signals, error: signalError } = await supabase
+    .from("market_signals")
+    .select("*")
+    .eq("fixture_id", fixtureId)
+    .eq("is_demo", false);
+  if (signalError) {
+    console.error("[db] getUnresolvedMarketSignalsForFixture signals error:", signalError.message);
+    return [];
+  }
+
+  const rows = signals ?? [];
+  if (!rows.length) return [];
+
+  const { data: resolutions, error: resolutionError } = await supabase
+    .from("signal_resolutions")
+    .select("signal_id")
+    .in("signal_id", rows.map((signal: any) => signal.id));
+  if (resolutionError) {
+    console.error("[db] getUnresolvedMarketSignalsForFixture resolutions error:", resolutionError.message);
+    return [];
+  }
+
+  const resolvedIds = new Set((resolutions ?? []).map((resolution: any) => resolution.signal_id));
+  return rows.filter((signal: any) => !resolvedIds.has(signal.id));
+}
+
+export async function getMatchById(fixtureId: string) {
+  const { data, error } = await supabase
+    .from("matches")
+    .select("id, home_score, away_score, finished_at, status")
+    .eq("id", fixtureId)
+    .eq("is_demo", false)
+    .maybeSingle();
+  if (error) {
+    console.error("[db] getMatchById error:", error.message);
+    return null;
+  }
+  return data;
 }
 
 export async function resolveMarketSignal(signal: { id: string; current_odds: number }, result: { outcome: "won" | "lost" | "push"; finalScore: string; finalOdds: number | null; unresolvedReason?: string | null }) {
@@ -404,18 +446,31 @@ export async function markMarketSignalUnsupported(signal: { id: string }, unreso
 }
 
 export async function getCompletedMatchesWithPendingSignals(limit = 50) {
-  const { data, error } = await supabase
+  const { data: signals, error: signalError } = await supabase
     .from("market_signals")
     .select("*, matches!inner(home_score, away_score, finished_at, status)")
-    .eq("pending_resolution", true)
     .eq("is_demo", false)
     .not("matches.finished_at", "is", null)
     .limit(limit);
-  if (error) {
-    console.error("[db] getCompletedMatchesWithPendingSignals error:", error.message);
+  if (signalError) {
+    console.error("[db] getCompletedMatchesWithPendingSignals signals error:", signalError.message);
     return [];
   }
-  return data ?? [];
+
+  const rows = signals ?? [];
+  if (!rows.length) return [];
+
+  const { data: resolutions, error: resolutionError } = await supabase
+    .from("signal_resolutions")
+    .select("signal_id")
+    .in("signal_id", rows.map((signal: any) => signal.id));
+  if (resolutionError) {
+    console.error("[db] getCompletedMatchesWithPendingSignals resolutions error:", resolutionError.message);
+    return [];
+  }
+
+  const resolvedIds = new Set((resolutions ?? []).map((resolution: any) => resolution.signal_id));
+  return rows.filter((signal: any) => !resolvedIds.has(signal.id));
 }
 
 export async function updateMarketSignalExplanation(signalId: string, explanation: string, aiProvider: string) {
