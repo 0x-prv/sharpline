@@ -5,20 +5,17 @@ import { AgentStatus } from "../components/AgentStatus";
 import { QuickNavCards } from "../components/QuickNavCards";
 import { PastMatchSignals } from "../components/PastMatchSignals";
 import { AutonomousMonitoringConsole } from "../components/AutonomousMonitoringConsole";
-import { getAgentState, getCompletedMatches, getLatestLiveSignal, getLatestResolvedSignal, getLiveFixtures, getLiveSignalStats, getRecentLiveSignals } from "../lib/queries";
+import { getAgentState, getCompletedMatches, getLatestLiveSignal, getLatestResolvedSignal, getLiveFixtures, getLiveSignalStats, getNextFixture, getRecentLiveSignals } from "../lib/queries";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 15;
 
 export default async function OverviewPage() {
-  const [agentState, fixtures, latestSignal, latestResolvedSignal, recentSignals, stats, completedMatches] = await Promise.all([
-    getAgentState(), getLiveFixtures(), getLatestLiveSignal(), getLatestResolvedSignal(), getRecentLiveSignals(4), getLiveSignalStats(), getCompletedMatches(4),
+  const [agentState, fixtures, latestSignal, latestResolvedSignal, recentSignals, stats, completedMatches, nextFixture] = await Promise.all([
+    getAgentState(), getLiveFixtures(), getLatestLiveSignal(), getLatestResolvedSignal(), getRecentLiveSignals(4), getLiveSignalStats(), getCompletedMatches(4), getNextFixture(),
   ]);
-  const activeFixtures = fixtures.filter((fixture) => fixture.status === "live_or_upcoming");
+  const activeFixtures = fixtures.filter((fixture) => fixture.status === "live_or_upcoming" || fixture.status === "live");
   const hasActiveMatch = activeFixtures.length > 0;
-  const nextFixture = (activeFixtures.length ? activeFixtures : fixtures)
-    .filter((fixture) => fixture.kickoff_at)
-    .sort((a, b) => new Date(a.kickoff_at!).getTime() - new Date(b.kickoff_at!).getTime())[0] ?? activeFixtures[0] ?? null;
   return (
     <main>
       <Nav />
