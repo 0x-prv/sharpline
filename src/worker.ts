@@ -21,7 +21,8 @@ import {
   insertMarketSignal,
   upsertAgentState,
   getHistoricalComparison,
-  getPendingMarketSignals,
+  getUnresolvedMarketSignalsForFixture,
+  getMatchById,
   resolveMarketSignal,
   markMarketSignalUnsupported,
   getCompletedMatchesWithPendingSignals,
@@ -165,6 +166,15 @@ async function loadWorldCupFixtures() {
       awayScore: awayScore ?? 0,
       isDemo: false,
     });
+
+    if (completed) {
+      await resolveSignalsForFixture(
+        fixtureId,
+        homeScore !== null && awayScore !== null
+          ? { home_h1: 0, away_h1: 0, home_total: homeScore, away_total: awayScore }
+          : undefined
+      );
+    }
   }
 
   counters.fixturesLoaded = fixtures.length;
@@ -292,26 +302,25 @@ async function handleOddsMessage(event: string, data: any) {
   }
 }
 
-async function handleGameFinalised(data: any) {
-  const fixtureId = String(data.FixtureId);
-  const score = {
-    home_h1: data.Score?.Participant1?.H1?.Goals ?? 0,
-    away_h1: data.Score?.Participant2?.H1?.Goals ?? 0,
-    home_total: data.Score?.Participant1?.Total?.Goals ?? 0,
-    away_total: data.Score?.Participant2?.Total?.Goals ?? 0,
-  };
+async function resolveSignalsForFixture(fixtureId: string, finalScore?: { home_h1: number; away_h1: number; home_total: number; away_total: number }) {
+  let score = finalScore;
+  if (!score) {
+    const match = await getMatchById(fixtureId);
+    if (!match?.finished_at && !["finished", "completed", "final"].includes(String(match?.status ?? "").toLowerCase())) {
+      console.log(`[resolver] fixture ${fixtureId} is not finished; skipping signal resolution`);
+      return 0;
+    }
+    if (match?.home_score === null || match?.home_score === undefined || match?.away_score === null || match?.away_score === undefined) {
+      console.log(`[resolver] fixture ${fixtureId} has no final score; skipping signal resolution`);
+      return 0;
+    }
+    score = { home_h1: 0, away_h1: 0, home_total: Number(match.home_score), away_total: Number(match.away_score) };
+  }
 
-  console.log(
-    `[resolver] game finalised ${fixtureId}: H1 ${score.home_h1}-${score.away_h1}, ` +
-      `FT ${score.home_total}-${score.away_total}`
-  );
+  const unresolvedMarketSignals = await getUnresolvedMarketSignalsForFixture(fixtureId);
+  console.log(`[resolver] resolving ${unresolvedMarketSignals.length} unresolved market signal(s) for fixture ${fixtureId}`);
 
-  await saveFinalScore(fixtureId, score, normalizeFinishedAt(data, true) ?? undefined);
-
-  const pendingMarketSignals = await getPendingMarketSignals(fixtureId);
-  console.log(`[resolver] resolving ${pendingMarketSignals.length} pending market signal(s) for fixture ${fixtureId}`);
-
-  for (const signal of pendingMarketSignals) {
+  for (const signal of unresolvedMarketSignals) {
     const outcome = resolveSignal({ market: signal.market, selection: signal.selection }, score);
     if (outcome === null) {
       console.log(`[resolver] skipped market signal (unsupported market): ${signal.market}/${signal.selection}`);
@@ -344,6 +353,27 @@ async function handleGameFinalised(data: any) {
       }
     }
   }
+
+  return unresolvedMarketSignals.length;
+}
+
+async function handleGameFinalised(data: any) {
+  const fixtureId = String(data.FixtureId);
+  const score = {
+    home_h1: data.Score?.Participant1?.H1?.Goals ?? 0,
+    away_h1: data.Score?.Participant2?.H1?.Goals ?? 0,
+    home_total: data.Score?.Participant1?.Total?.Goals ?? 0,
+    away_total: data.Score?.Participant2?.Total?.Goals ?? 0,
+  };
+
+  console.log(
+    `[resolver] game finalised ${fixtureId}: H1 ${score.home_h1}-${score.away_h1}, ` +
+      `FT ${score.home_total}-${score.away_total}`
+  );
+
+  await saveFinalScore(fixtureId, score, normalizeFinishedAt(data, true) ?? undefined);
+
+  await resolveSignalsForFixture(fixtureId, score);
 
   const pendingSignals = await getPendingSignals(fixtureId);
   console.log(`[resolver] resolving ${pendingSignals.length} legacy pending signal(s) for fixture ${fixtureId}`);
@@ -402,7 +432,7 @@ async function handleScoreMessage(event: string, data: any) {
     }
   }
 
-  if (data.Action === "game_finalised" && data.Score) {
+  if (data.Score && (data.Action === "game_finalised" || isCompletedFixture(data))) {
     await handleGameFinalised(data);
     return;
   }
@@ -447,34 +477,9 @@ async function reconcileCompletedMatches(options: { reconcileStaleFixtures?: boo
   if (options.reconcileStaleFixtures ?? true) await reconcileStalePastKickoffFixtures();
   const pending = await getCompletedMatchesWithPendingSignals();
   if (!pending.length) return;
-  console.log(`[resolver] reconciliation found ${pending.length} pending signal(s) on completed matches`);
-  for (const signal of pending) {
-    const match = Array.isArray(signal.matches) ? signal.matches[0] : signal.matches;
-    const home = Number(match?.home_score ?? 0);
-    const away = Number(match?.away_score ?? 0);
-    const score = { home_h1: 0, away_h1: 0, home_total: home, away_total: away };
-    const outcome = resolveSignal({ market: signal.market, selection: signal.selection }, score);
-    if (outcome === null) {
-      await markMarketSignalUnsupported(signal, `Unsupported market: ${signal.market}/${signal.selection}`);
-      continue;
-    }
-    const resolved = await resolveMarketSignal(signal, { outcome, finalScore: `${home}-${away}`, finalOdds: Number(signal.current_odds) });
-    if (resolved && (outcome === "won" || outcome === "lost")) {
-      const signature = await anchorSignalOnChain({
-        id: signal.id,
-        fixture_id: signal.fixture_id,
-        market: signal.market,
-        selection: signal.selection,
-        price_before: Number(signal.previous_odds),
-        price_after: Number(signal.current_odds),
-        pct_change: Number(signal.movement_pct),
-        classification: signal.severity ?? signal.action,
-        confidence: Number(signal.confidence),
-        outcome,
-      });
-      if (signature) await saveMarketSignalAnchorTx(signal.id, signature);
-    }
-  }
+  const fixtureIds = [...new Set(pending.map((signal: any) => String(signal.fixture_id)))];
+  console.log(`[resolver] reconciliation found unresolved signal(s) on ${fixtureIds.length} completed match(es)`);
+  for (const fixtureId of fixtureIds) await resolveSignalsForFixture(fixtureId);
 }
 
 async function saveHeartbeat() {
