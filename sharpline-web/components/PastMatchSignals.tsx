@@ -1,6 +1,6 @@
 import { Anchor, Trophy } from "lucide-react";
 import type { CompletedMatch } from "../lib/queries";
-import { teamWithFlag } from "../lib/countryFlags";
+import { TeamWithFlag } from "./Flag";
 
 const SOLANA_CLUSTER = process.env.NEXT_PUBLIC_TXLINE_NETWORK === "devnet" ? "devnet" : "mainnet";
 function solanaTxUrl(signature: string) { return `https://explorer.solana.com/tx/${signature}?cluster=${SOLANA_CLUSTER}`; }
@@ -18,7 +18,7 @@ export function PastMatchSignals({ matches }: { matches: CompletedMatch[] }) {
           <div key={match.id} className="rounded-xl border border-border bg-bg/50 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="font-display text-lg font-semibold text-text">{teamWithFlag(match.home_team)} vs {teamWithFlag(match.away_team)}</p>
+                <p className="font-display text-lg font-semibold text-text"><TeamWithFlag teamName={match.home_team} /> vs <TeamWithFlag teamName={match.away_team} /></p>
                 <p className="mt-1 text-sm text-text-muted">Final {match.final_score ?? "Score pending"} · {match.status} · {match.finished_at ? new Date(match.finished_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Completed"}</p>
                 {match.signals === 0 ? <p className="mt-2 text-sm text-signal-amber">No signals captured</p> : null}
                 {!match.replayAvailable ? <p className="mt-1 text-xs text-text-muted">Replay unavailable — SharpLine was not running when this match was played.</p> : null}

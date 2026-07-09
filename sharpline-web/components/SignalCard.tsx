@@ -1,6 +1,6 @@
 import { Anchor, Clock, Radio, ShieldAlert, TrendingUp } from "lucide-react";
 import { actionTone, explainReason, formatMarketSelection } from "./copy";
-import { formatMatchWithFlags } from "../lib/countryFlags";
+import { MatchWithFlags } from "./Flag";
 
 const SOLANA_CLUSTER = process.env.NEXT_PUBLIC_TXLINE_NETWORK === "devnet" ? "devnet" : "mainnet";
 function solanaTxUrl(signature: string) { return `https://explorer.solana.com/tx/${signature}?cluster=${SOLANA_CLUSTER}`; }
@@ -24,7 +24,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
               <h2 className="text-4xl font-semibold tracking-[-0.04em] text-text">{formatMarketSelection(signal.market, signal.selection)}</h2>
               <span className={`rounded-full border px-3 py-1 font-data text-xs ${actionTone(signal.action)}`}>{side}</span>
             </div>
-            <p className="mt-2 text-sm text-text-muted">{formatMatchWithFlags(signal.match)} · {formatMarketSelection(signal.market, signal.selection)}</p>
+            <p className="mt-2 text-sm text-text-muted"><MatchWithFlags match={signal.match} /> · {formatMarketSelection(signal.market, signal.selection)}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="rounded-full border border-signal-green/20 bg-signal-green/10 px-3 py-1 font-data text-[11px] uppercase text-signal-green">Live</div>

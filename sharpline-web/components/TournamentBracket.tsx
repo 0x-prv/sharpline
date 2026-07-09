@@ -1,5 +1,5 @@
 import type { TournamentBracketData, BracketMatch } from "../lib/worldCupBracketFeed";
-import { teamWithFlag } from "../lib/countryFlags";
+import { TeamWithFlag } from "./Flag";
 import { MatchCountdown } from "./MatchCountdown";
 
 export function TournamentBracket({ data }: { data: TournamentBracketData }) {
@@ -50,5 +50,5 @@ function BracketCard({ match }: { match: BracketMatch }) {
 }
 
 function TeamRow({ name, score, winner }: { name: string; score: number | null; winner: boolean }) {
-  return <div className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 ${winner ? "bg-signal-green/10 text-text" : "text-text-muted"}`}><span className="truncate text-sm">{name === "TBD" ? "TBD" : teamWithFlag(name)}</span><span className="font-data text-sm text-text">{score ?? "—"}</span></div>;
+  return <div className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 ${winner ? "bg-signal-green/10 text-text" : "text-text-muted"}`}><span className="truncate text-sm">{name === "TBD" ? "TBD" : <TeamWithFlag teamName={name} />}</span><span className="font-data text-sm text-text">{score ?? "—"}</span></div>;
 }

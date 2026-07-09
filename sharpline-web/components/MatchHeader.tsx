@@ -1,5 +1,5 @@
 import { MatchCountdown } from "./MatchCountdown";
-import { teamWithFlag } from "../lib/countryFlags";
+import { TeamWithFlag } from "./Flag";
 
 type Fixture = {
   id: string;
@@ -14,7 +14,7 @@ export function MatchHeader({ fixture, nextFixture }: { fixture: Fixture; nextFi
     return (
       <div className="rounded-xl border border-border bg-surface p-5">
         {nextFixture ? (<>
-          <h2 className="font-display text-2xl font-semibold text-text">Next match: {teamWithFlag(nextFixture.home_team)} vs {teamWithFlag(nextFixture.away_team)} — kicks off in <MatchCountdown kickoff_at={nextFixture.kickoff_at} compact expiredLabel="Awaiting result" /></h2>
+          <h2 className="font-display text-2xl font-semibold text-text">Next match: <TeamWithFlag teamName={nextFixture.home_team} /> vs <TeamWithFlag teamName={nextFixture.away_team} /> — kicks off in <MatchCountdown kickoff_at={nextFixture.kickoff_at} compact expiredLabel="Awaiting result" /></h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-text-muted">SharpLine is connected and monitoring TxLINE fixtures. Signals will appear automatically when odds move during an active match.</p>
         </>) : (<>
           <h2 className="font-display text-2xl font-semibold text-text">Waiting for the next live match</h2>
@@ -37,11 +37,11 @@ export function MatchHeader({ fixture, nextFixture }: { fixture: Fixture; nextFi
     <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-5">
       <div className="flex items-center gap-3">
         <span className="font-display text-lg font-medium text-text">
-          {teamWithFlag(fixture.home_team)}
+          <TeamWithFlag teamName={fixture.home_team} />
         </span>
         <span className="font-data text-sm text-text-muted">vs</span>
         <span className="font-display text-lg font-medium text-text">
-          {teamWithFlag(fixture.away_team)}
+          <TeamWithFlag teamName={fixture.away_team} />
         </span>
       </div>
       <div className="flex items-center gap-2">
