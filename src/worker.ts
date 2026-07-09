@@ -79,9 +79,16 @@ function isCompletedFixture(fixture: any) {
   return fixture.GameState === 2 || fixture.GameState === 3 || ["finished", "completed", "final"].includes(state) || action === "game_finalised" || (home !== null && away !== null && Boolean(fixture.EndTime ?? fixture.FinishedAt));
 }
 
+function normalizeTxlineTime(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const date = new Date(value as any);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function normalizeFinishedAt(fixture: any, fallbackToNow = false) {
   const value = fixture.EndTime ?? fixture.FinishedAt ?? fixture.FinishTime ?? fixture.UpdatedAt ?? null;
-  if (value) return new Date(value).toISOString();
+  const normalized = normalizeTxlineTime(value);
+  if (normalized) return normalized;
   return fallbackToNow ? new Date().toISOString() : null;
 }
 
@@ -133,7 +140,7 @@ async function loadWorldCupFixtures() {
     const fixtureId = String(f.FixtureId);
     const completed = isCompletedFixture(f);
     const status = completed ? "finished" : f.GameState === 1 ? "live_or_upcoming" : "scheduled";
-    const kickoffAt = f.StartTime ? new Date(f.StartTime).toISOString() : null;
+    const kickoffAt = normalizeTxlineTime(f.StartTime);
     const finishedAt = completed ? normalizeFinishedAt(f, true) : null;
     const homeTeam = f.Participant1 ?? "Participant 1";
     const awayTeam = f.Participant2 ?? "Participant 2";
@@ -192,13 +199,29 @@ async function handleOddsMessage(event: string, data: any) {
 
   for (const tick of ticks) {
     counters.oddsUpdatesProcessed++;
-    const match = matchStates.get(tick.fixtureId) ?? {
-      fixtureId: tick.fixtureId,
-      match: tick.fixtureId,
-      homeScore: 0,
-      awayScore: 0,
-      isDemo: false,
-    };
+    let match = matchStates.get(tick.fixtureId);
+    if (!match) {
+      const fixtureMatch = await getMatchById(tick.fixtureId);
+      match = {
+        fixtureId: tick.fixtureId,
+        match: fixtureMatch?.home_team && fixtureMatch?.away_team ? `${fixtureMatch.home_team} vs ${fixtureMatch.away_team}` : tick.fixtureId,
+        homeScore: Number(fixtureMatch?.home_score ?? 0),
+        awayScore: Number(fixtureMatch?.away_score ?? 0),
+        isDemo: false,
+      };
+      if (!fixtureMatch) {
+        await insertMatch({
+          id: tick.fixtureId,
+          home_team: "Participant 1",
+          away_team: "Participant 2",
+          status: "live",
+          kickoff_at: null,
+          is_demo: false,
+        });
+      }
+      matchStates.set(tick.fixtureId, match);
+    }
+    activeFixtureId = tick.fixtureId;
     await insertOddsTick({
       fixture_id: tick.fixtureId,
       market: tick.market,
@@ -442,7 +465,8 @@ async function handleScoreMessage(event: string, data: any) {
   if (data.Confirmed === false) return;
 
   const scoreEvent = normalizeScoreEvent(data);
-  await insertScoreEvent(scoreEvent);
+  if (fixtureIdForState) activeFixtureId = fixtureIdForState;
+  await insertScoreEvent({ ...scoreEvent, is_demo: false });
 }
 
 async function reconcileStalePastKickoffFixtures() {

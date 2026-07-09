@@ -75,7 +75,18 @@ export async function insertScoreEvent(event: {
   event_type: string;
   minute?: number | null;
   team?: string | null;
+  is_demo?: boolean;
 }) {
+  const matchEvent = {
+    fixture_id: event.fixture_id,
+    event_type: event.event_type,
+    minute: event.minute ?? null,
+    team: event.team ?? null,
+    is_demo: event.is_demo ?? false,
+  };
+  const { error: matchEventError } = await supabase.from("match_events").insert(matchEvent);
+  if (matchEventError) console.error("[db] insertScoreEvent match_events error:", matchEventError.message);
+
   if (!LEGACY_WRITES_ENABLED) return;
   const { error } = await supabase.from("score_events").insert(event);
   if (error) console.error("[db] insertScoreEvent error:", error.message);
@@ -384,7 +395,7 @@ export async function getUnresolvedMarketSignalsForFixture(fixtureId: string) {
 export async function getMatchById(fixtureId: string) {
   const { data, error } = await supabase
     .from("matches")
-    .select("id, home_score, away_score, finished_at, status")
+    .select("id, home_team, away_team, home_score, away_score, finished_at, status")
     .eq("id", fixtureId)
     .eq("is_demo", false)
     .maybeSingle();
