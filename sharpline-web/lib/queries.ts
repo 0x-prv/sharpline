@@ -1,4 +1,5 @@
 import { supabaseServer } from "./supabase-server";
+import { getWorldCupBracket, type BracketMatch } from "./worldCupBracketFeed";
 
 export type CompletedMatch = {
   id: string;
@@ -52,13 +53,52 @@ export async function getAgentState() {
 
 export async function getLiveFixtures() {
   try {
-    const { data, error } = await supabaseServer.from("matches").select("*").eq("is_demo", false).order("kickoff_at", { ascending: false });
+    const now = new Date().toISOString();
+    const { data, error } = await supabaseServer
+      .from("matches")
+      .select("*")
+      .eq("is_demo", false)
+      .in("status", ["scheduled", "live_or_upcoming", "live"])
+      .gte("kickoff_at", now)
+      .order("kickoff_at", { ascending: true });
     if (error) { console.error("[queries] query error", error.message); return []; }
     return data ?? [];
   } catch (err) { console.error("[queries] query exception", err); return []; }
 }
 
 export const getFixtures = getLiveFixtures;
+
+export async function getNextFixture() {
+  const fixtures = await getLiveFixtures();
+  if (!fixtures.length) return null;
+  try {
+    const bracket = await getWorldCupBracket();
+    const bracketFixtures = upcomingActiveBracketMatches(bracket.rounds.flatMap((round) => round.matches));
+    return fixtures.find((fixture) => appearsInBracketFixtures(fixture, bracketFixtures)) ?? null;
+  } catch (err) {
+    console.error("[queries] getNextFixture bracket validation error", err);
+    return fixtures[0] ?? null;
+  }
+}
+
+function upcomingActiveBracketMatches(matches: BracketMatch[]) {
+  const now = Date.now();
+  return matches.filter((match) =>
+    (match.status === "upcoming" || match.status === "in_progress")
+    && match.home.name !== "TBD"
+    && match.away.name !== "TBD"
+    && (!match.kickoff_at || new Date(match.kickoff_at).getTime() >= now)
+  );
+}
+
+function appearsInBracketFixtures(fixture: { home_team?: string | null; away_team?: string | null }, bracketFixtures: BracketMatch[]) {
+  const fixtureTeams = teamPair(fixture.home_team, fixture.away_team);
+  return bracketFixtures.some((match) => samePair(fixtureTeams, teamPair(match.home.name, match.away.name)));
+}
+
+function teamPair(home?: string | null, away?: string | null) { return [normalizeTeamName(home), normalizeTeamName(away)].sort(); }
+function samePair(left: string[], right: string[]) { return left[0] === right[0] && left[1] === right[1]; }
+function normalizeTeamName(value?: string | null) { return (value ?? "").toLowerCase().replace(/\b(united states|united states of america|usmnt)\b/g, "usa").replace(/[^a-z0-9]+/g, "").trim(); }
 
 export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> {
   try {
