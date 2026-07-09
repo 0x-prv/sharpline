@@ -7,17 +7,30 @@ const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // re-check fixture list every 10 mi
 
 type FixtureWindow = { fixtureId: string; start: number; end: number };
 
+function txlineTimeMs(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+
 let windows: FixtureWindow[] = [];
 
 export async function refreshFixtureWindows() {
   const fixtures = await getFixturesSnapshot(WORLD_CUP_COMPETITION_ID);
 
   windows = fixtures
-    .filter((f: any) => typeof f.StartTime === "number")
-    .map((f: any) => ({
-      fixtureId: String(f.FixtureId),
-      start: f.StartTime - PRE_MATCH_BUFFER_MS,
-      end: f.StartTime + POST_MATCH_BUFFER_MS,
+    .map((f: any) => ({ fixtureId: String(f.FixtureId), startTime: txlineTimeMs(f.StartTime) }))
+    .filter((f: { fixtureId: string; startTime: number | null }): f is { fixtureId: string; startTime: number } => Boolean(f.fixtureId) && f.startTime !== null)
+    .map((f: { fixtureId: string; startTime: number }) => ({
+      fixtureId: f.fixtureId,
+      start: f.startTime - PRE_MATCH_BUFFER_MS,
+      end: f.startTime + POST_MATCH_BUFFER_MS,
     }));
 
   console.log(`[scheduler] refreshed ${windows.length} fixture windows`);
