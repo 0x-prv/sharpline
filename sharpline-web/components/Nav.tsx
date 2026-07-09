@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bell, Command, LayoutDashboard, Radio, Search } from "lucide-react";
+import { BarChart3, Bell, Command, GitBranch, LayoutDashboard, Radio, Search } from "lucide-react";
 
 const LINKS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/signals", label: "Signals", icon: Radio },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/bracket", label: "Bracket", icon: GitBranch },
 ];
 
 export function Nav() {

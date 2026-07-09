@@ -16,10 +16,13 @@ export default async function OverviewPage() {
   ]);
   const activeFixtures = fixtures.filter((fixture) => fixture.status === "live_or_upcoming");
   const hasActiveMatch = activeFixtures.length > 0;
+  const nextFixture = (activeFixtures.length ? activeFixtures : fixtures)
+    .filter((fixture) => fixture.kickoff_at)
+    .sort((a, b) => new Date(a.kickoff_at!).getTime() - new Date(b.kickoff_at!).getTime())[0] ?? activeFixtures[0] ?? null;
   return (
     <main>
       <Nav />
-      <Hero stats={stats} hasActiveMatch={hasActiveMatch} agentState={agentState} signals={recentSignals} />
+      <Hero stats={stats} hasActiveMatch={hasActiveMatch} agentState={agentState} signals={recentSignals} nextFixture={nextFixture} />
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:py-10">
         <section className="grid gap-4 lg:grid-cols-3">
           <Panel title="Latest Signals" subtitle="Newest AI-generated match signals">
