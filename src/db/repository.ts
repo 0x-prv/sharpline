@@ -191,6 +191,19 @@ export async function saveAnchorTx(signalId: string, signature: string) {
   if (error) console.error("[db] saveAnchorTx error:", error.message);
   else console.log(`[db] signal ${signalId} anchored: ${signature}`);
 }
+
+export async function saveMarketSignalAnchorTx(signalId: string, signature: string) {
+  const { error } = await supabase
+    .from("signal_resolutions")
+    .update({
+      anchor_tx_signature: signature,
+      anchored_at: new Date().toISOString(),
+    })
+    .eq("signal_id", signalId);
+  if (error) console.error("[db] saveMarketSignalAnchorTx error:", error.message);
+  else console.log(`[db] market signal ${signalId} anchored: ${signature}`);
+}
+
 export async function insertMatch(match: {
   id: string;
   home_team: string;

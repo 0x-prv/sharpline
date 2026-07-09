@@ -15,6 +15,7 @@ export type CompletedMatch = {
   bestSignal: string | null;
   largestOddsMovement: number | null;
   roi: number | null;
+  anchor_tx_signature: string | null;
 };
 
 export type ResolvedSignal = {
@@ -35,6 +36,7 @@ export type ResolvedSignal = {
   roi_units: number | null;
   resolved_at: string | null;
   final_score: string | null;
+  anchor_tx_signature: string | null;
 };
 
 export async function getAgentState() {
@@ -73,7 +75,7 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
     const fixtureIds = matches.map((match) => match.id);
     const [signalsRes, resolutionsRes, oddsRes] = await Promise.all([
       supabaseServer.from("market_signals").select("id, fixture_id, action, confidence, movement_pct, occurred_at, outcome, roi_units, final_score").eq("is_demo", false).in("fixture_id", fixtureIds),
-      supabaseServer.from("signal_resolutions").select("outcome, roi_units, final_score, market_signals!inner(id, fixture_id, is_demo, action, confidence, movement_pct)").eq("market_signals.is_demo", false).in("market_signals.fixture_id", fixtureIds),
+      supabaseServer.from("signal_resolutions").select("outcome, roi_units, final_score, anchor_tx_signature, market_signals!inner(id, fixture_id, is_demo, action, confidence, movement_pct)").eq("market_signals.is_demo", false).in("market_signals.fixture_id", fixtureIds),
       supabaseServer.from("odds_snapshots").select("fixture_id, home_score, away_score, price, received_at").eq("is_demo", false).in("fixture_id", fixtureIds).order("received_at", { ascending: true }),
     ]);
 
@@ -103,6 +105,7 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
         bestSignal: best ? `${best.action} · ${best.confidence}%` : null,
         largestOddsMovement: largest,
         roi: roiVals.length ? Number(roiVals.reduce((sum, value) => sum + value, 0).toFixed(2)) : null,
+        anchor_tx_signature: matchResolutions.find((row) => row.anchor_tx_signature)?.anchor_tx_signature ?? null,
       };
     });
   } catch (err) { console.error("[queries] query exception", err); return []; }
@@ -122,14 +125,14 @@ export async function getResolvedSignals(limit = 12): Promise<ResolvedSignal[]> 
   try {
     const { data, error } = await supabaseServer
       .from("signal_resolutions")
-      .select("outcome, roi_units, final_score, resolved_at, market_signals!inner(id, fixture_id, match, market, selection, action, confidence, movement_pct, previous_odds, current_odds, reason_code, explanation, occurred_at, is_demo)")
+      .select("outcome, roi_units, final_score, resolved_at, anchor_tx_signature, market_signals!inner(id, fixture_id, match, market, selection, action, confidence, movement_pct, previous_odds, current_odds, reason_code, explanation, occurred_at, is_demo)")
       .eq("market_signals.is_demo", false)
       .order("resolved_at", { ascending: false })
       .limit(limit);
     if (error) { console.error("[queries] getResolvedSignals error", error.message); return []; }
     return (data ?? []).map((row) => {
       const signal = relation(row.market_signals);
-      return { ...signal, outcome: row.outcome, roi_units: row.roi_units, resolved_at: row.resolved_at, final_score: row.final_score } as ResolvedSignal;
+      return { ...signal, outcome: row.outcome, roi_units: row.roi_units, resolved_at: row.resolved_at, final_score: row.final_score, anchor_tx_signature: row.anchor_tx_signature } as ResolvedSignal;
     });
   } catch (err) { console.error("[queries] query exception", err); return []; }
 }

@@ -7,7 +7,7 @@ import { explainSignal, fallbackExplanation } from "./ai/explain.js";
 import type { MatchState } from "./types.js";
 import { resolveSignal } from "./engine/resolver.js";
 import { anchorSignalOnChain } from "./chain/memo.js";
-import { saveAnchorTx } from "./db/repository.js";
+import { saveAnchorTx, saveMarketSignalAnchorTx } from "./db/repository.js";
 import {
   upsertFixture,
   insertOddsTick,
@@ -315,12 +315,31 @@ async function handleGameFinalised(data: any) {
       await markMarketSignalUnsupported(signal, `Unsupported market: ${signal.market}/${signal.selection}`);
       continue;
     }
-    await resolveMarketSignal(signal, {
+    const resolved = await resolveMarketSignal(signal, {
       outcome,
       finalScore: `${score.home_total}-${score.away_total}`,
       finalOdds: Number(signal.current_odds),
     });
     console.log(`[resolver] market signal ${signal.id} ${signal.market}/${signal.selection} -> ${outcome}`);
+
+    if (resolved && (outcome === "won" || outcome === "lost")) {
+      const signature = await anchorSignalOnChain({
+        id: signal.id,
+        fixture_id: signal.fixture_id,
+        market: signal.market,
+        selection: signal.selection,
+        price_before: Number(signal.previous_odds),
+        price_after: Number(signal.current_odds),
+        pct_change: Number(signal.movement_pct),
+        classification: signal.severity ?? signal.action,
+        confidence: Number(signal.confidence),
+        outcome,
+      });
+
+      if (signature) {
+        await saveMarketSignalAnchorTx(signal.id, signature);
+      }
+    }
   }
 
   const pendingSignals = await getPendingSignals(fixtureId);
@@ -407,7 +426,22 @@ async function reconcileCompletedMatches() {
       await markMarketSignalUnsupported(signal, `Unsupported market: ${signal.market}/${signal.selection}`);
       continue;
     }
-    await resolveMarketSignal(signal, { outcome, finalScore: `${home}-${away}`, finalOdds: Number(signal.current_odds) });
+    const resolved = await resolveMarketSignal(signal, { outcome, finalScore: `${home}-${away}`, finalOdds: Number(signal.current_odds) });
+    if (resolved && (outcome === "won" || outcome === "lost")) {
+      const signature = await anchorSignalOnChain({
+        id: signal.id,
+        fixture_id: signal.fixture_id,
+        market: signal.market,
+        selection: signal.selection,
+        price_before: Number(signal.previous_odds),
+        price_after: Number(signal.current_odds),
+        pct_change: Number(signal.movement_pct),
+        classification: signal.severity ?? signal.action,
+        confidence: Number(signal.confidence),
+        outcome,
+      });
+      if (signature) await saveMarketSignalAnchorTx(signal.id, signature);
+    }
   }
 }
 

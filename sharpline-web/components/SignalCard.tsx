@@ -1,7 +1,10 @@
-import { Clock, Radio, ShieldAlert, TrendingUp } from "lucide-react";
+import { Anchor, Clock, Radio, ShieldAlert, TrendingUp } from "lucide-react";
 import { actionTone, explainReason, formatMarketSelection } from "./copy";
 
-type Signal = { id?: string; fixture_id: string; competition?: string; match: string; market: string; selection: string; previous_odds: number; current_odds: number; movement_pct: number; direction: string; severity: string; confidence: number; reason_code: string; action: string; explanation: string; ai_provider: string; is_demo: boolean; occurred_at: string; current_match_state?: string; pending_resolution?: boolean; outcome?: string | null; final_score?: string | null; roi_units?: number | null; historical_similar_count?: number; historical_success_rate?: number | null; historical_average_roi?: number | null; } | null;
+const SOLANA_CLUSTER = process.env.NEXT_PUBLIC_TXLINE_NETWORK === "devnet" ? "devnet" : "mainnet";
+function solanaTxUrl(signature: string) { return `https://explorer.solana.com/tx/${signature}?cluster=${SOLANA_CLUSTER}`; }
+
+type Signal = { id?: string; fixture_id: string; competition?: string; match: string; market: string; selection: string; previous_odds: number; current_odds: number; movement_pct: number; direction: string; severity: string; confidence: number; reason_code: string; action: string; explanation: string; ai_provider: string; is_demo: boolean; occurred_at: string; current_match_state?: string; pending_resolution?: boolean; outcome?: string | null; final_score?: string | null; roi_units?: number | null; historical_similar_count?: number; historical_success_rate?: number | null; historical_average_roi?: number | null; anchor_tx_signature?: string | null; } | null;
 
 export function SignalCard({ signal }: { signal: Signal }) {
   if (!signal) return <EmptySignal />;
@@ -22,7 +25,10 @@ export function SignalCard({ signal }: { signal: Signal }) {
             </div>
             <p className="mt-2 text-sm text-text-muted">{signal.match} · {formatMarketSelection(signal.market, signal.selection)}</p>
           </div>
-          <div className="rounded-full border border-signal-green/20 bg-signal-green/10 px-3 py-1 font-data text-[11px] uppercase text-signal-green">Live</div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="rounded-full border border-signal-green/20 bg-signal-green/10 px-3 py-1 font-data text-[11px] uppercase text-signal-green">Live</div>
+            {signal.anchor_tx_signature ? <a href={solanaTxUrl(signal.anchor_tx_signature)} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-full border border-signal-blue/30 bg-signal-blue/10 px-3 py-1 text-xs font-semibold text-signal-blue"><Anchor className="h-3.5 w-3.5" /> ⚓ Anchored on Solana</a> : null}
+          </div>
         </div>
         <svg viewBox="0 0 100 44" className="mt-6 h-14 w-full" preserveAspectRatio="none" aria-label="Mini sparkline">
           <polyline points={spark} fill="none" stroke={movement < 0 ? "#22C55E" : "#3B82F6"} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />

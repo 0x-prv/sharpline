@@ -1,5 +1,8 @@
-import { Trophy } from "lucide-react";
+import { Anchor, Trophy } from "lucide-react";
 import type { CompletedMatch } from "../lib/queries";
+
+const SOLANA_CLUSTER = process.env.NEXT_PUBLIC_TXLINE_NETWORK === "devnet" ? "devnet" : "mainnet";
+function solanaTxUrl(signature: string) { return `https://explorer.solana.com/tx/${signature}?cluster=${SOLANA_CLUSTER}`; }
 
 export function PastMatchSignals({ matches }: { matches: CompletedMatch[] }) {
   return (
@@ -19,7 +22,10 @@ export function PastMatchSignals({ matches }: { matches: CompletedMatch[] }) {
                 {match.signals === 0 ? <p className="mt-2 text-sm text-signal-amber">No signals captured</p> : null}
                 {!match.replayAvailable ? <p className="mt-1 text-xs text-text-muted">Replay unavailable — SharpLine was not running when this match was played.</p> : null}
               </div>
-              <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-text-muted"><Trophy className="h-3.5 w-3.5 text-signal-green" /> ROI {formatNumber(match.roi)}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                {match.anchor_tx_signature ? <a href={solanaTxUrl(match.anchor_tx_signature)} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-full border border-signal-blue/30 bg-signal-blue/10 px-3 py-1 text-xs font-semibold text-signal-blue"><Anchor className="h-3.5 w-3.5" /> ⚓ Anchored on Solana</a> : null}
+                <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-text-muted"><Trophy className="h-3.5 w-3.5 text-signal-green" /> ROI {formatNumber(match.roi)}</div>
+              </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-7">
               <Mini label="Signals" value={String(match.signals)} />
