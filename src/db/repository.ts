@@ -153,6 +153,22 @@ export async function saveFinalScore(
   if (matchError) console.error("[db] saveFinalScore matches error:", matchError.message);
 }
 
+export async function getStalePastKickoffMatches(cutoffIso: string, limit = 100) {
+  const { data, error } = await supabase
+    .from("matches")
+    .select("id, home_team, away_team, status, kickoff_at, finished_at, home_score, away_score")
+    .eq("is_demo", false)
+    .lt("kickoff_at", cutoffIso)
+    .or("status.is.null,status.not.in.(finished,completed,final)")
+    .order("kickoff_at", { ascending: true })
+    .limit(limit);
+  if (error) {
+    console.error("[db] getStalePastKickoffMatches error:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export async function getPendingSignals(fixtureId: string) {
   if (!LEGACY_WRITES_ENABLED) return [];
   const { data, error } = await supabase

@@ -25,6 +25,7 @@ import {
   resolveMarketSignal,
   markMarketSignalUnsupported,
   getCompletedMatchesWithPendingSignals,
+  getStalePastKickoffMatches,
 } from "./db/repository.js";
 import { ensureTxlineSessionReady } from "./txline/session.js";
 import {
@@ -39,6 +40,7 @@ const PRICE_SCALE = 1000;
 const MONITOR_INTERVAL_MS = 60 * 1000; // re-check every 1 min whether window ended
 const HEARTBEAT_INTERVAL_MS = 20 * 1000;
 const RECONCILIATION_INTERVAL_MS = 5 * 60 * 1000;
+const STALE_FIXTURE_GRACE_MS = 3 * 60 * 60 * 1000;
 const STREAM_RECONNECT_BACKOFF_MS = 5 * 1000;
 
 const counters = {
@@ -303,7 +305,7 @@ async function handleGameFinalised(data: any) {
       `FT ${score.home_total}-${score.away_total}`
   );
 
-  await saveFinalScore(fixtureId, score);
+  await saveFinalScore(fixtureId, score, normalizeFinishedAt(data, true) ?? undefined);
 
   const pendingMarketSignals = await getPendingMarketSignals(fixtureId);
   console.log(`[resolver] resolving ${pendingMarketSignals.length} pending market signal(s) for fixture ${fixtureId}`);
@@ -412,7 +414,36 @@ async function handleScoreMessage(event: string, data: any) {
   await insertScoreEvent(scoreEvent);
 }
 
-async function reconcileCompletedMatches() {
+async function reconcileStalePastKickoffFixtures() {
+  const cutoff = new Date(Date.now() - STALE_FIXTURE_GRACE_MS).toISOString();
+  const staleMatches = await getStalePastKickoffMatches(cutoff);
+  if (!staleMatches.length) return { stale: 0, backfilled: 0 };
+
+  console.log(`[resolver] stale fixture reconciliation checking ${staleMatches.length} past-kickoff match(es)`);
+  const fixtures = await getFixturesSnapshot(WORLD_CUP_COMPETITION_ID);
+  const fixturesById = new Map(fixtures.map((fixture: any) => [String(fixture.FixtureId), fixture]));
+  let backfilled = 0;
+
+  for (const match of staleMatches) {
+    const fixture = fixturesById.get(String(match.id));
+    if (!fixture) {
+      console.log(`[resolver] stale fixture ${match.id} not found in TxLINE snapshot`);
+      continue;
+    }
+    if (!isCompletedFixture(fixture)) continue;
+
+    await handleGameFinalised(fixture);
+    backfilled++;
+  }
+
+  if (backfilled > 0) {
+    console.log(`[resolver] backfilled ${backfilled}/${staleMatches.length} stale past-kickoff fixture(s)`);
+  }
+  return { stale: staleMatches.length, backfilled };
+}
+
+async function reconcileCompletedMatches(options: { reconcileStaleFixtures?: boolean } = {}) {
+  if (options.reconcileStaleFixtures ?? true) await reconcileStalePastKickoffFixtures();
   const pending = await getCompletedMatchesWithPendingSignals();
   if (!pending.length) return;
   console.log(`[resolver] reconciliation found ${pending.length} pending signal(s) on completed matches`);
@@ -547,13 +578,25 @@ async function main() {
   }
 }
 
-main().catch(async (err) => {
-  workerStatus = "error";
-  txlineStatus = "offline";
-  console.error("[worker] fatal error:", err?.response?.data || err.message || err);
-  await upsertAgentState({ mode: "live", worker_status: "error", txline_status: "offline", notes: err?.message ?? "fatal worker error" }).catch(() => undefined);
-  process.exit(1);
-});
+if (process.argv.includes("--reconcile-once")) {
+  (async () => {
+    await ensureTxlineSessionReady();
+    const result = await reconcileStalePastKickoffFixtures();
+    await reconcileCompletedMatches({ reconcileStaleFixtures: false });
+    console.log(JSON.stringify({ level: "info", component: "worker", event: "reconcile_once_complete", ...result }));
+  })().catch((err) => {
+    console.error("[worker] reconcile-once fatal error:", err?.response?.data || err.message || err);
+    process.exit(1);
+  });
+} else {
+  main().catch(async (err) => {
+    workerStatus = "error";
+    txlineStatus = "offline";
+    console.error("[worker] fatal error:", err?.response?.data || err.message || err);
+    await upsertAgentState({ mode: "live", worker_status: "error", txline_status: "offline", notes: err?.message ?? "fatal worker error" }).catch(() => undefined);
+    process.exit(1);
+  });
+}
 
 process.on("SIGINT", () => {
   console.log("\n[worker] shutting down gracefully...");
