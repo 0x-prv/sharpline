@@ -1,6 +1,9 @@
 import { supabaseServer } from "./supabase-server";
 import { getWorldCupBracket, type BracketMatch } from "./worldCupBracketFeed";
 
+const TERMINAL_MATCH_STATUS = "finished";
+const ACTIVE_MATCH_STATUSES = ["scheduled", "live_or_upcoming", "live"];
+
 export type CompletedMatch = {
   id: string;
   home_team: string;
@@ -58,7 +61,8 @@ export async function getLiveFixtures() {
       .from("matches")
       .select("*")
       .eq("is_demo", false)
-      .in("status", ["scheduled", "live_or_upcoming", "live"])
+      .in("status", ACTIVE_MATCH_STATUSES)
+      .is("finished_at", null)
       .gte("kickoff_at", now)
       .order("kickoff_at", { ascending: true });
     if (error) { console.error("[queries] query error", error.message); return []; }
@@ -106,7 +110,7 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
       .from("matches")
       .select("id, home_team, away_team, status, kickoff_at, finished_at, home_score, away_score")
       .eq("is_demo", false)
-      .or("finished_at.not.is.null,status.in.(finished,completed,final)")
+      .or(`finished_at.not.is.null,status.eq.${TERMINAL_MATCH_STATUS}`)
       .order("finished_at", { ascending: false, nullsFirst: false })
       .limit(limit);
     if (error) { console.error("[queries] getCompletedMatches error", error.message); return []; }
@@ -225,7 +229,7 @@ export async function getLiveSignalStats() {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const [completed, total, todaySignals, highConf, oddsToday, signals, resolutions] = await Promise.all([
-      supabaseServer.from("matches").select("*", { count: "exact", head: true }).eq("is_demo", false).or("finished_at.not.is.null,status.in.(finished,completed,final)"),
+      supabaseServer.from("matches").select("*", { count: "exact", head: true }).eq("is_demo", false).or(`finished_at.not.is.null,status.eq.${TERMINAL_MATCH_STATUS}`),
       supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false),
       supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false).gte("occurred_at", today.toISOString()),
       supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false).gte("confidence", 85),
