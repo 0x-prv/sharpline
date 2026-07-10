@@ -23,15 +23,33 @@ let windows: FixtureWindow[] = [];
 
 export async function refreshFixtureWindows() {
   const fixtures = await getFixturesSnapshot(WORLD_CUP_COMPETITION_ID);
-
-  windows = fixtures
+  const normalizedFixtures = fixtures
     .map((f: any) => ({ fixtureId: String(f.FixtureId), startTime: txlineTimeMs(f.StartTime) }))
-    .filter((f: { fixtureId: string; startTime: number | null }): f is { fixtureId: string; startTime: number } => Boolean(f.fixtureId) && f.startTime !== null)
-    .map((f: { fixtureId: string; startTime: number }) => ({
-      fixtureId: f.fixtureId,
-      start: f.startTime - PRE_MATCH_BUFFER_MS,
-      end: f.startTime + POST_MATCH_BUFFER_MS,
-    }));
+    .filter((f: { fixtureId: string; startTime: number | null }): f is { fixtureId: string; startTime: number } => Boolean(f.fixtureId) && f.startTime !== null);
+
+  windows = normalizedFixtures.map((f: { fixtureId: string; startTime: number }) => ({
+    fixtureId: f.fixtureId,
+    start: f.startTime - PRE_MATCH_BUFFER_MS,
+    end: f.startTime + POST_MATCH_BUFFER_MS,
+  }));
+
+  const now = Date.now();
+  const activeWindows = windows.filter((w) => now >= w.start && now <= w.end).length;
+  const upcomingWindows = windows.filter((w) => w.start > now).length;
+  const expiredWindows = windows.filter((w) => w.end < now).length;
+  console.log(JSON.stringify({
+    level: "info",
+    component: "scheduler",
+    event: "fixture_window_refresh",
+    txline_fixtures_returned: fixtures.length,
+    fixtures_after_normalization: normalizedFixtures.length,
+    fixtures_after_filtering: normalizedFixtures.length,
+    monitoring_windows_created: windows.length,
+    active_windows: activeWindows,
+    upcoming_windows: upcomingWindows,
+    expired_windows: expiredWindows,
+    filter: "Boolean(String(FixtureId)) && txlineTimeMs(StartTime) !== null; active check is now >= startTime - 15m && now <= startTime + 150m",
+  }));
 
   console.log(`[scheduler] refreshed ${windows.length} fixture windows`);
 }
