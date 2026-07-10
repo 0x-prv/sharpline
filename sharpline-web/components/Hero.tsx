@@ -31,21 +31,21 @@ export function Hero({ stats, hasActiveMatch, agentState, signals, nextFixture }
               </div>
             </div>
             <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-[-0.04em] text-text md:text-[48px] md:leading-[1.02]">
-              FIFA World Cup match intelligence. Powered by TxLINE live data.
+              Autonomous sports market intelligence powered by TxLINE.
             </h1>
             <p className="mt-5 max-w-2xl text-[15px] leading-7 text-text-muted">
-              Sharpline monitors FIFA World Cup fixtures, detects live score and odds movement from TxLINE, explains momentum shifts with AI, and tracks risk/confidence for match intelligence teams.
+              Collect live odds. Detect abnormal movement. Explain why it matters. Track outcomes. Measure accuracy.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <a className="rounded-full bg-text px-5 py-2.5 text-sm font-semibold text-bg hover:bg-text/90" href="/signals">Review match signals</a>
-              <a className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-text-muted hover:bg-card hover:text-text" href="/analytics">Open match analytics</a>
+              <a className="rounded-full bg-text px-5 py-2.5 text-sm font-semibold text-bg hover:bg-text/90" href="/signals">View live signals</a>
+              <a className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-text-muted hover:bg-card hover:text-text" href="/analytics">See accuracy</a>
             </div>
           </div>
           <div className="premium-card p-4">
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
                 <p className="kicker">Live Match Signals</p>
-                <p className="mt-1 text-sm text-text-muted">TxLINE score and odds stream · {hasActiveMatch ? "Monitoring active fixtures" : "Standing by"}</p>
+                <p className="mt-1 text-sm text-text-muted">TxLINE score and odds stream · {hasActiveMatch ? "Monitoring active fixtures" : "Monitoring next kickoff"}</p>
               </div>
               <span className="rounded-full border border-signal-green/20 bg-signal-green/10 px-3 py-1 font-data text-[11px] text-signal-green">{title(agentState?.txline_status) ?? "Online"}</span>
             </div>
@@ -63,7 +63,7 @@ export function Hero({ stats, hasActiveMatch, agentState, signals, nextFixture }
   );
 }
 function LiveSignalCard({ signal }: { signal: Signal }) { const movement = Number(signal.movement_pct); const side = actionLabel(signal.action); const spark = [22, 30, 28, 46, 42, 62, 57, 74].map((y, i) => `${i * 14},${86 - y}`).join(" "); return <div className="rounded-2xl border border-border bg-bg/70 p-4 transition duration-150 hover:-translate-y-0.5 hover:bg-card"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-text">{formatMarketSelection(signal.market, signal.selection)}</p><p className="mt-1 text-xs text-text-muted"><MatchWithFlags match={signal.match} /></p></div><span className={`rounded-full border px-2.5 py-1 font-data text-[11px] ${actionTone(signal.action)}`}>{side}</span></div><svg viewBox="0 0 100 34" className="mt-3 h-10 w-full" preserveAspectRatio="none" aria-label="Signal sparkline"><polyline points={spark} fill="none" stroke={movement < 0 ? "#22C55E" : "#3B82F6"} strokeWidth="2.25" vectorEffect="non-scaling-stroke" /></svg><div className="mt-3 grid grid-cols-4 gap-2 text-[11px]"><Mini label="Conf" value={`${signal.confidence}%`} /><Mini label="Momentum" value={Math.abs(movement) > 8 ? "High" : "Med"} /><Mini label="Risk" value={signal.confidence >= 85 ? "Med" : "Elev"} /><Mini label="Detected" value={relativeTime(signal.occurred_at)} /></div><p className="mt-3 font-data text-[11px] text-text-muted">Signal quality · {signal.severity ?? "Ranked"}</p></div>; }
-function EmptyLiveSignal({ nextFixture }: { nextFixture?: Fixture | null }) { return <div className="rounded-2xl border border-border bg-bg/50 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold text-text">No live AI signal yet</p><p className="mt-1 text-xs leading-5 text-text-muted">{nextFixture ? <>Next match: <TeamWithFlag teamName={nextFixture.home_team} /> vs <TeamWithFlag teamName={nextFixture.away_team} /> — kicks off in <MatchCountdown kickoff_at={nextFixture.kickoff_at} compact expiredLabel="Awaiting result" /></> : "Autonomous monitoring is active. Real TxLINE signals will appear after qualifying score or odds movement."}</p></div><span className="rounded-full border border-signal-green/20 bg-signal-green/10 px-2.5 py-1 font-data text-[11px] text-signal-green">Listening</span></div><div className="mt-4 grid grid-cols-4 gap-2"><Mini label="Conf" value="Waiting" /><Mini label="Momentum" value="Waiting" /><Mini label="Risk" value="Waiting" /><Mini label="Detected" value="Waiting" /></div></div>; }
+function EmptyLiveSignal({ nextFixture }: { nextFixture?: Fixture | null }) { return <div className="rounded-2xl border border-border bg-bg/50 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold text-text">No live AI signal yet</p><p className="mt-1 text-xs leading-5 text-text-muted">{nextFixture ? <>Next match: <TeamWithFlag teamName={nextFixture.home_team} /> vs <TeamWithFlag teamName={nextFixture.away_team} /> — kicks off in <MatchCountdown kickoff_at={nextFixture.kickoff_at} compact expiredLabel="Awaiting result" /></> : "Autonomous monitoring is active. Real TxLINE signals will appear after qualifying score or odds movement."}</p></div><span className="rounded-full border border-signal-green/20 bg-signal-green/10 px-2.5 py-1 font-data text-[11px] text-signal-green">Listening</span></div><div className="mt-4 rounded-xl border border-border bg-surface p-3 text-xs leading-5 text-text-muted">Listening for TxLINE odds movement. Confidence, momentum, risk, and detection time appear only after a real signal is generated.</div></div>; }
 function Mini({ label, value }: { label: string; value: string }) { return <div><p className="text-text-muted">{label}</p><p className="mt-0.5 font-data text-text">{value}</p></div>; }
 function title(value?: string | null) { return value ? value.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()) : null; }
 function formatCount(value?: number | null) { return value === null || value === undefined ? "—" : Intl.NumberFormat("en-US", { notation: "compact" }).format(value); }

@@ -13,16 +13,16 @@ export function MatchReplay({ replay }: { replay: Replay }) {
   return (
     <section className="rounded-2xl border border-border bg-surface p-6">
       <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Match Replay</p>
-      <h2 className="mt-3 font-display text-2xl font-semibold text-text">Replay previous market movement.</h2>
-      <p className="mt-2 text-sm leading-6 text-text-muted">Timeline built from matches, odds_snapshots, market_signals, and signal_resolutions production rows.</p>
+      <h2 className="mt-3 font-display text-2xl font-semibold text-text">Watch the market think, step by step.</h2>
+      <p className="mt-2 text-sm leading-6 text-text-muted">Chronological replay of real TxLINE odds snapshots, SharpLine signals, AI explanations, and verified outcomes.</p>
       <div className="mt-5 space-y-3">
         {replay && events.length === 0 ? (
           <div className="rounded-xl border border-border bg-bg/50 p-6 text-sm text-text-muted">
             <p className="font-display text-base text-text">{replay.match.home_team} vs {replay.match.away_team} · Final {formatFinalScore(replay)}</p>
-            <p className="mt-2">Replay unavailable — SharpLine was not running when this match was played.</p>
+            <p className="mt-2">Replay unavailable because this completed fixture has no stored TxLINE odds snapshots or SharpLine signal rows.</p>
           </div>
         ) : events.length === 0 ? (
-          <div className="rounded-xl border border-border bg-bg/50 p-6 text-sm text-text-muted">Select a completed fixture with stored odds and signals to replay market movement.</div>
+          <div className="rounded-xl border border-border bg-bg/50 p-6 text-sm text-text-muted">No replay is available yet. A replay appears after TxLINE odds snapshots or SharpLine signals are stored for a completed fixture.</div>
         ) : events.map(({ key, time, title, body, icon: Icon }) => (
           <div key={key} className="flex gap-3 rounded-xl border border-border bg-bg/50 p-4">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surface"><Icon className="h-4 w-4 text-signal-blue" /></div>
@@ -41,13 +41,13 @@ export function MatchReplay({ replay }: { replay: Replay }) {
 function buildEvents(replay: NonNullable<Replay>) {
   const events = [];
   if (replay.match.kickoff_at) events.push({ key: "kickoff", at: replay.match.kickoff_at, time: formatTime(replay.match.kickoff_at), title: "Kickoff / match start", body: `${replay.match.home_team} vs ${replay.match.away_team} started.`, icon: Flag });
-  replay.odds.slice(0, 8).forEach((tick, index) => events.push({ key: `odds-${index}`, at: tick.received_at, time: formatTime(tick.received_at), title: "Odds snapshot", body: `${formatMarketSelection(tick.market, tick.selection)} priced at ${Number(tick.price).toFixed(2)} with score ${tick.home_score ?? 0}-${tick.away_score ?? 0}.`, icon: Radio }));
+  replay.odds.slice(0, 8).forEach((tick, index) => events.push({ key: `odds-${index}`, at: tick.received_at, time: formatTime(tick.received_at), title: "TxLINE odds update", body: `${formatMarketSelection(tick.market, tick.selection)} priced at ${Number(tick.price).toFixed(2)} with score ${tick.home_score ?? 0}-${tick.away_score ?? 0}.`, icon: Radio }));
   replay.signals.forEach((signal) => {
-    events.push({ key: `signal-${signal.id}`, at: signal.occurred_at, time: formatTime(signal.occurred_at), title: "Signal generated", body: `${explainAction(signal.action)} at ${signal.confidence}% confidence for ${formatMarketSelection(signal.market, signal.selection)}.`, icon: Bot });
-    events.push({ key: `explain-${signal.id}`, at: signal.occurred_at, time: formatTime(signal.occurred_at), title: "AI explanation event", body: signal.explanation || "AI explanation stored with the signal.", icon: Brain });
+    events.push({ key: `signal-${signal.id}`, at: signal.occurred_at, time: formatTime(signal.occurred_at), title: "SharpLine signal", body: `${explainAction(signal.action)} at ${signal.confidence}% confidence for ${formatMarketSelection(signal.market, signal.selection)}.`, icon: Bot });
+    events.push({ key: `explain-${signal.id}`, at: signal.occurred_at, time: formatTime(signal.occurred_at), title: "AI explanation", body: signal.explanation || "AI explanation stored with the signal.", icon: Brain });
   });
   if (replay.match.finished_at) events.push({ key: "final", at: replay.match.finished_at, time: formatTime(replay.match.finished_at), title: "Final score", body: `Match finished ${formatFinalScore(replay)}.`, icon: Trophy });
-  replay.resolutions.forEach((resolution, index) => events.push({ key: `resolution-${index}`, at: resolution.resolved_at, time: formatTime(resolution.resolved_at), title: "Resolution result", body: `${resolution.outcome.toUpperCase()} · ROI ${Number(resolution.roi_units ?? 0).toFixed(2)} units.`, icon: LineChart }));
+  replay.resolutions.forEach((resolution, index) => events.push({ key: `resolution-${index}`, at: resolution.resolved_at, time: formatTime(resolution.resolved_at), title: "Outcome measured", body: `${resolution.outcome.toUpperCase()} · ROI ${Number(resolution.roi_units ?? 0).toFixed(2)} units.`, icon: LineChart }));
   return events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()).map(({ at, ...event }) => { void at; return event; });
 }
 

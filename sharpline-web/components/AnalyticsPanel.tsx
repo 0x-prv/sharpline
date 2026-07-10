@@ -41,8 +41,8 @@ export function AnalyticsPanel({ stats, signals }: { stats: Stats; signals: Sign
           <Metric label="Completed Matches" value={stats.completedMatches ?? 0} />
           <Metric label="Captured Signals" value={stats.totalSignals ?? 0} />
           <Metric label="Resolved Signals" value={(stats.correctSignals ?? 0) + (stats.incorrectSignals ?? 0)} />
-          <Metric label="Accuracy" value={stats.accuracy === null ? "n/a" : `${stats.accuracy}%`} />
-          <Metric label="ROI" value={stats.averageRoi === null || stats.averageRoi === undefined ? "n/a" : `${stats.averageRoi > 0 ? "+" : ""}${stats.averageRoi}`} />
+          <Metric label="Accuracy" value={stats.accuracy === null ? "Awaiting data" : `${stats.accuracy}%`} />
+          <Metric label="ROI" value={stats.averageRoi === null || stats.averageRoi === undefined ? "Awaiting data" : `${stats.averageRoi > 0 ? "+" : ""}${stats.averageRoi}`} />
         </div>
         {(stats.totalSignals ?? 0) === 0 ? <p className="mt-4 text-sm text-text-muted">Completed TxLINE matches are loaded. Accuracy and ROI appear after SharpLine captures and resolves live signals.</p> : null}
       </section>
@@ -75,7 +75,7 @@ export function AnalyticsPanel({ stats, signals }: { stats: Stats; signals: Sign
             <div key={item.strategy} className="flex items-center justify-between rounded-xl border border-border bg-bg/50 p-4">
               <div>
                 <p className={`inline-flex rounded-full border px-3 py-1 text-sm font-semibold ${actionTone(item.strategy)}`}>{explainAction(item.strategy)}</p>
-                <p className="mt-2 text-xs text-text-muted">Accuracy {item.accuracy ?? "n/a"}% · ROI {item.averageRoi ?? "n/a"}</p>
+                <p className="mt-2 text-xs text-text-muted">Accuracy {item.accuracy ?? "Awaiting data"}% · ROI {item.averageRoi ?? "Awaiting data"}</p>
               </div>
               <p className="font-display text-2xl font-semibold text-text">{item.signals}</p>
             </div>

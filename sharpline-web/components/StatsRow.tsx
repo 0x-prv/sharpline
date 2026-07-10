@@ -4,12 +4,12 @@ type Stats = { totalSignals: number | null; signalsToday: number | null; highCon
 
 export function StatsRow({ stats }: { stats: Stats }) {
   const items = [
-    { label: "Signals Generated", value: stats.totalSignals === null ? "Not reported yet" : stats.totalSignals > 0 ? stats.totalSignals.toString() : "No live signals yet", trend: "Historical tracking", icon: TrendingUp },
-    { label: "Correct Signals", value: (stats.correctSignals ?? 0) > 0 ? String(stats.correctSignals) : "Waiting for first resolved signal", trend: "Resolution tracking", icon: CheckCircle2 },
-    { label: "Incorrect Signals", value: (stats.incorrectSignals ?? 0) > 0 ? String(stats.incorrectSignals) : "Waiting for first resolved signal", trend: "Resolution tracking", icon: XCircle },
-    { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "Waiting for first resolved signal", trend: "Live only", icon: Target },
-    { label: "Average ROI", value: stats.averageRoi !== null && stats.averageRoi !== undefined ? `${stats.averageRoi}` : "Waiting for first resolved signal", trend: "Stored outcomes", icon: Award },
-    { label: "Best Performing Strategy", value: stats.bestStrategy ?? "Waiting for resolved data", trend: `${stats.avgConfidence ?? "n/a"}% avg confidence · ${stats.totalOddsUpdatesToday ?? 0} odds updates today`, icon: Award },
+    { label: "Signals Generated", value: stats.totalSignals === null ? "Monitoring next kickoff" : stats.totalSignals > 0 ? stats.totalSignals.toString() : "No live signals yet", trend: "Historical tracking", icon: TrendingUp },
+    { label: "Correct Signals", value: (stats.correctSignals ?? 0) > 0 ? String(stats.correctSignals) : "Monitoring for first verified outcome", trend: "Resolution tracking", icon: CheckCircle2 },
+    { label: "Incorrect Signals", value: (stats.incorrectSignals ?? 0) > 0 ? String(stats.incorrectSignals) : "Monitoring for first verified outcome", trend: "Resolution tracking", icon: XCircle },
+    { label: "Accuracy", value: stats.accuracy !== null ? `${stats.accuracy}%` : "Monitoring for first verified outcome", trend: "Live only", icon: Target },
+    { label: "Average ROI", value: stats.averageRoi !== null && stats.averageRoi !== undefined ? `${stats.averageRoi}` : "Monitoring for first verified outcome", trend: "Stored outcomes", icon: Award },
+    { label: "Best Performing Strategy", value: stats.bestStrategy ?? "Monitoring for first verified outcome", trend: `${stats.avgConfidence ?? "Awaiting data"}% avg confidence · ${stats.totalOddsUpdatesToday ?? 0} odds updates today`, icon: Award },
   ];
 
   return (
