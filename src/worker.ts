@@ -2,7 +2,7 @@ import { connectOddsStream, connectScoresStream } from "./txline/stream.js";
 import { getFixturesSnapshot } from "./txline/client.js";
 import { checkForSharpMovement } from "./engine/detector.js";
 import { classifyMovement } from "./engine/correlator.js";
-import { detectMarketSignal } from "./engine/signal-engine.js";
+import { detectMarketSignal, SHARP_THRESHOLD_PCT } from "./engine/signal-engine.js";
 import { explainSignal, fallbackExplanation } from "./ai/explain.js";
 import type { MatchState } from "./types.js";
 import { resolveSignal } from "./engine/resolver.js";
@@ -243,6 +243,7 @@ async function handleOddsMessage(event: string, data: any) {
       is_demo: false,
     });
 
+    console.log(JSON.stringify({ level: "info", component: "worker", event: "detector_calling", fixture_id: tick.fixtureId, market: tick.market, selection: tick.selection, price: tick.price, home_score: match.homeScore, away_score: match.awayScore }));
     const marketSignal = detectMarketSignal({
       fixtureId: tick.fixtureId,
       match: match.match,
@@ -254,6 +255,8 @@ async function handleOddsMessage(event: string, data: any) {
       awayScore: match.awayScore,
       isDemo: false,
     }, match);
+
+    console.log(JSON.stringify({ level: "info", component: "worker", event: "detector_result", fixture_id: tick.fixtureId, market: tick.market, selection: tick.selection, signal_generated: Boolean(marketSignal), movement_pct: marketSignal?.movementPct ?? null, threshold_pct: SHARP_THRESHOLD_PCT }));
 
     if (marketSignal) {
       const historicalComparison = await getHistoricalComparison({
@@ -445,6 +448,7 @@ async function handleGameFinalised(data: any) {
 async function handleScoreMessage(event: string, data: any) {
   if (event === "heartbeat") return;
 
+  console.log(JSON.stringify({ level: "info", component: "worker", event: "score_message_received", stream_event: event, fixture_id: data?.FixtureId ? String(data.FixtureId) : null, action: data?.Action ?? data?.EventType ?? null, confirmed: data?.Confirmed ?? null, has_score: Boolean(data?.Score), completed: isCompletedFixture(data) }));
   counters.eventsProcessed++;
   lastTxlineEventAt = new Date().toISOString();
   const fixtureIdForState = data.FixtureId ? String(data.FixtureId) : null;
@@ -459,18 +463,20 @@ async function handleScoreMessage(event: string, data: any) {
     }
   }
 
+  if (fixtureIdForState) activeFixtureId = fixtureIdForState;
+  const scoreEvent = normalizeScoreEvent(data);
+
+  if (data.Confirmed === false) {
+    console.log(JSON.stringify({ level: "info", component: "worker", event: "score_event_rejected", fixture_id: scoreEvent.fixture_id, event_type: scoreEvent.event_type, rejection_reason: "unconfirmed" }));
+    return;
+  }
+
+  await insertScoreEvent({ ...scoreEvent, is_demo: false });
+
   if (data.Score && isCompletedFixture(data)) {
     await handleGameFinalised(data);
     return;
   }
-
-  // Skip provisional/unconfirmed events (e.g. goal fires once as
-  // Confirmed:false, then again as Confirmed:true) to avoid duplicates
-  if (data.Confirmed === false) return;
-
-  const scoreEvent = normalizeScoreEvent(data);
-  if (fixtureIdForState) activeFixtureId = fixtureIdForState;
-  await insertScoreEvent({ ...scoreEvent, is_demo: false });
 }
 
 async function reconcileStalePastKickoffFixtures() {
@@ -552,6 +558,7 @@ async function runActiveWindow() {
   }, MONITOR_INTERVAL_MS);
 
   try {
+    console.log(JSON.stringify({ level: "info", component: "worker", event: "stream_subscription_starting", streams: ["odds", "scores"] }));
     await Promise.all([
       connectOddsStream((event, data) => {
         handleOddsMessage(event, data).catch((err) =>
