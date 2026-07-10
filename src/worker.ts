@@ -27,6 +27,8 @@ import {
   markMarketSignalUnsupported,
   getCompletedMatchesWithPendingSignals,
   getStalePastKickoffMatches,
+  isTerminalMatchStatus,
+  TERMINAL_MATCH_STATUS,
 } from "./db/repository.js";
 import { ensureTxlineSessionReady } from "./txline/session.js";
 import {
@@ -72,11 +74,12 @@ function getTotalGoals(score: any, participant: "Participant1" | "Participant2")
 }
 
 function isCompletedFixture(fixture: any) {
-  const state = String(fixture.Status ?? fixture.GameStatus ?? fixture.State ?? "").toLowerCase();
-  const action = String(fixture.Action ?? "").toLowerCase();
+  const state = String(fixture.Status ?? fixture.GameStatus ?? fixture.State ?? fixture.status ?? fixture.gameStatus ?? fixture.state ?? "").toLowerCase();
+  const action = String(fixture.Action ?? fixture.action ?? fixture.EventType ?? fixture.eventType ?? "").toLowerCase();
+  const gameState = Number(fixture.GameState ?? fixture.gameState);
   const home = getTotalGoals(fixture.Score, "Participant1");
   const away = getTotalGoals(fixture.Score, "Participant2");
-  return fixture.GameState === 2 || fixture.GameState === 3 || ["finished", "completed", "final"].includes(state) || action === "game_finalised" || (home !== null && away !== null && Boolean(fixture.EndTime ?? fixture.FinishedAt));
+  return gameState === 2 || gameState === 3 || isTerminalMatchStatus(state) || ["game_finalised", "game_finalized", "finished", "completed", "final"].includes(action) || (home !== null && away !== null && Boolean(fixture.EndTime ?? fixture.FinishedAt));
 }
 
 function normalizeTxlineTime(value: unknown) {
@@ -139,7 +142,8 @@ async function loadWorldCupFixtures() {
   for (const f of fixtures) {
     const fixtureId = String(f.FixtureId);
     const completed = isCompletedFixture(f);
-    const status = completed ? "finished" : f.GameState === 1 ? "live_or_upcoming" : "scheduled";
+    const gameState = Number(f.GameState ?? f.gameState);
+    const status = completed ? TERMINAL_MATCH_STATUS : gameState === 1 ? "live_or_upcoming" : "scheduled";
     const kickoffAt = normalizeTxlineTime(f.StartTime);
     const finishedAt = completed ? normalizeFinishedAt(f, true) : null;
     const homeTeam = f.Participant1 ?? "Participant 1";
@@ -329,7 +333,7 @@ async function resolveSignalsForFixture(fixtureId: string, finalScore?: { home_h
   let score = finalScore;
   if (!score) {
     const match = await getMatchById(fixtureId);
-    if (!match?.finished_at && !["finished", "completed", "final"].includes(String(match?.status ?? "").toLowerCase())) {
+    if (!match?.finished_at && !isTerminalMatchStatus(match?.status)) {
       console.log(`[resolver] fixture ${fixtureId} is not finished; skipping signal resolution`);
       return 0;
     }
@@ -455,7 +459,7 @@ async function handleScoreMessage(event: string, data: any) {
     }
   }
 
-  if (data.Score && (data.Action === "game_finalised" || isCompletedFixture(data))) {
+  if (data.Score && isCompletedFixture(data)) {
     await handleGameFinalised(data);
     return;
   }

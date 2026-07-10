@@ -2,6 +2,12 @@ import { createHash } from "crypto";
 import { supabase } from "./supabase.js";
 
 export const LEGACY_WRITES_ENABLED = process.env.LEGACY_WRITES_ENABLED === "true";
+export const TERMINAL_MATCH_STATUS = "finished";
+export const TERMINAL_MATCH_STATUSES = [TERMINAL_MATCH_STATUS, "completed", "final"];
+
+export function isTerminalMatchStatus(status?: string | null) {
+  return TERMINAL_MATCH_STATUSES.includes(String(status ?? "").toLowerCase());
+}
 
 function idempotencyKey(parts: Array<string | number | null | undefined>) {
   return createHash("sha256").update(parts.map((part) => String(part ?? "")).join("|")).digest("hex");
@@ -142,7 +148,7 @@ export async function saveFinalScore(
     away_score_h1: score.away_h1,
     home_score_total: score.home_total,
     away_score_total: score.away_total,
-    status: "finished",
+    status: TERMINAL_MATCH_STATUS,
     finished_at: finishedAt,
   };
   if (LEGACY_WRITES_ENABLED) {
@@ -153,7 +159,7 @@ export async function saveFinalScore(
   const { error: matchError } = await supabase
     .from("matches")
     .update({
-      status: "finished",
+      status: TERMINAL_MATCH_STATUS,
       home_score: score.home_total,
       away_score: score.away_total,
       finished_at: finishedAt,
@@ -242,15 +248,28 @@ export async function insertMatch(match: {
   away_score?: number | null;
   is_demo?: boolean;
 }) {
+  const incomingStatus = match.status ?? "scheduled";
+  const incomingIsTerminal = isTerminalMatchStatus(incomingStatus) || Boolean(match.finished_at);
+  const { data: existing, error: existingError } = await supabase
+    .from("matches")
+    .select("status, finished_at, home_score, away_score")
+    .eq("id", match.id)
+    .eq("is_demo", match.is_demo ?? false)
+    .maybeSingle();
+  if (existingError) console.error("[db] insertMatch existing lookup error:", existingError.message);
+
+  const existingIsTerminal = isTerminalMatchStatus(existing?.status) || Boolean(existing?.finished_at);
+  const preserveTerminal = existingIsTerminal && !incomingIsTerminal;
+
   const { error } = await supabase.from("matches").upsert({
     id: match.id,
     home_team: match.home_team,
     away_team: match.away_team,
-    status: match.status ?? "scheduled",
+    status: preserveTerminal ? (existing?.status ?? TERMINAL_MATCH_STATUS) : incomingIsTerminal ? TERMINAL_MATCH_STATUS : incomingStatus,
     kickoff_at: match.kickoff_at ?? null,
-    finished_at: match.finished_at ?? null,
-    home_score: match.home_score ?? null,
-    away_score: match.away_score ?? null,
+    finished_at: preserveTerminal ? existing?.finished_at ?? null : match.finished_at ?? null,
+    home_score: preserveTerminal ? existing?.home_score ?? match.home_score ?? null : match.home_score ?? null,
+    away_score: preserveTerminal ? existing?.away_score ?? match.away_score ?? null : match.away_score ?? null,
     is_demo: match.is_demo ?? false,
     updated_at: new Date().toISOString(),
   });
