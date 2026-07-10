@@ -171,9 +171,23 @@ async function backfillSignals(dryRun: boolean): Promise<BackfillStats> {
       }
       if (dryRun) continue;
 
-      const signalId = await insertMarketSignal({ ...payload, idempotency_key: idempotencyKey });
-      if (signalId) stats.signalsInserted++;
-      else stats.insertFailures++;
+      try {
+        const signalId = await insertMarketSignal({ ...payload, idempotency_key: idempotencyKey });
+        if (signalId) stats.signalsInserted++;
+        else stats.duplicatesSkipped++;
+      } catch (error) {
+        stats.insertFailures++;
+        console.error(JSON.stringify({
+          level: "error",
+          component: "signal_backfill",
+          event: "market_signal_insert_aborted",
+          insertFailures: stats.insertFailures,
+          signalsInserted: stats.signalsInserted,
+          signalsDetected: stats.signalsDetected,
+          error: error instanceof Error ? error.message : String(error),
+        }));
+        throw error;
+      }
     }
 
     if (page.length < PAGE_SIZE) break;
