@@ -17,7 +17,7 @@ export function MatchHeader({ fixture, nextFixture }: { fixture: Fixture; nextFi
           <h2 className="font-display text-2xl font-semibold text-text">Next match: <TeamWithFlag teamName={nextFixture.home_team} /> vs <TeamWithFlag teamName={nextFixture.away_team} /> — kicks off in <MatchCountdown kickoff_at={nextFixture.kickoff_at} compact expiredLabel="Awaiting result" /></h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-text-muted">SharpLine is connected and monitoring TxLINE fixtures. Signals will appear automatically when odds move during an active match.</p>
         </>) : (<>
-          <h2 className="font-display text-2xl font-semibold text-text">Waiting for the next live match</h2>
+          <h2 className="font-display text-2xl font-semibold text-text">Monitoring the next live match</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-text-muted">SharpLine is connected and monitoring TxLINE fixtures. Signals will appear automatically when odds move during an active match.</p>
         </>)}
       </div>

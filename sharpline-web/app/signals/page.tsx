@@ -35,16 +35,16 @@ export default async function SignalsPage() {
     <main>
       <Nav />
       <PageHeader
-        eyebrow="Live + Historical Intelligence"
-        title="Autonomous Signal Decisions"
-        description="Resolved signals from completed fixtures appear first when no live signal exists, while SharpLine continues monitoring the next kickoff."
+        eyebrow="Live Signals · Replay · Outcome Tracking"
+        title="SharpLine Signal Intelligence"
+        description="Live TxLINE odds movement, autonomous AI explanations, historical signals, replay, and past-match accuracy in one production view."
         icon={Radio}
       />
       <div className="mx-auto max-w-6xl space-y-4 px-6 py-10">
         {!latestSignal && (
           <section className="rounded-2xl border border-border bg-surface p-8 text-center">
-            <h2 className="font-display text-2xl font-semibold text-text">Reviewing completed matches while monitoring the next kickoff.</h2>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-text-muted">Resolved signals from completed fixtures are shown below until the next live market alert is generated.</p>
+            <h2 className="font-display text-2xl font-semibold text-text">Monitoring next live fixture while showing verified historical intelligence.</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-text-muted">No live signal has been generated for the current window. SharpLine is listening for TxLINE odds updates and will promote the next qualifying market movement automatically.</p>
           </section>
         )}
         <PastMatchSignals matches={completedMatches} />

@@ -9,7 +9,7 @@ const PROCESS_STEPS = [
   { title: "Measure", body: "Tracks long-term accuracy after matches finish.", icon: ShieldCheck },
 ];
 
-const FALLBACK_EVENTS = ["Worker started", "Loaded today’s fixtures", "Connected to TxLINE", "Waiting for first live kickoff"];
+const FALLBACK_EVENTS = ["Agent active", "Loaded today’s fixtures", "Connected to TxLINE", "Monitoring next live fixture"];
 
 type Signal = { market: string; selection: string; previous_odds: number; current_odds: number; movement_pct: number; reason_code: string; action: string; confidence: number; occurred_at: string; is_demo: boolean };
 

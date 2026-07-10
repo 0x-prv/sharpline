@@ -3,7 +3,7 @@ import { Bot, Brain, Clock, LineChart, Radio } from "lucide-react";
 type Signal = { occurred_at: string } | null;
 
 export function MatchTimeline({ signal }: { signal: Signal }) {
-  const time = signal ? new Date(signal.occurred_at).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" }) : "Waiting";
+  const time = signal ? new Date(signal.occurred_at).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" }) : "Monitoring";
   const events = signal
     ? [
         { time, title: "Odds updated", icon: Radio },
@@ -14,7 +14,7 @@ export function MatchTimeline({ signal }: { signal: Signal }) {
       ]
     : [
         { time: "Ready", title: "Fixtures loaded", icon: Radio },
-        { time: "Next", title: "Waiting for kickoff", icon: Clock },
+        { time: "Next", title: "Monitoring next kickoff", icon: Clock },
         { time: "Active", title: "TxLINE monitor active", icon: LineChart },
         { time: "Auto", title: "Signals will be generated automatically", icon: Bot },
       ];
