@@ -9,7 +9,8 @@
     "worker": "tsx src/worker.ts",
     "dev": "tsx watch src/worker.ts",
     "activate": "tsx src/txline/activate-cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "backfill:signals": "tsx src/backfill/signals.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
