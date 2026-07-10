@@ -24,6 +24,8 @@ api.interceptors.response.use(undefined, async (error) => {
 
 export async function getFixturesSnapshot(competitionId?: number) {
   const res = await api.get("/api/fixtures/snapshot", { params: competitionId ? { competitionId } : undefined });
+  const fixtureCount = Array.isArray(res.data) ? res.data.length : null;
+  console.log(JSON.stringify({ level: "info", component: "txline", event: "fixtures_snapshot_returned", competitionId: competitionId ?? null, count: fixtureCount }));
   return res.data;
 }
 
