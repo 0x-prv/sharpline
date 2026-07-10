@@ -10,7 +10,8 @@
     "dev": "tsx watch src/worker.ts",
     "activate": "tsx src/txline/activate-cli.ts",
     "typecheck": "tsc --noEmit",
-    "backfill:signals": "tsx src/backfill/signals.ts"
+    "backfill:signals": "tsx src/backfill/signals.ts",
+    "reconcile:finished": "tsx src/worker.ts --reconcile-once"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

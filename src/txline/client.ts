@@ -34,7 +34,14 @@ export async function getOddsSnapshot(fixtureId: string | number) {
   return res.data;
 }
 
+export const TXLINE_HISTORICAL_SCORE_UPDATES_ENDPOINT = "/api/scores/updates/{fixtureId}";
+
 export async function getScoreUpdates(fixtureId: string | number) {
-  const res = await api.get(`/api/scores/updates/${fixtureId}`);
+  const endpoint = `/api/scores/updates/${fixtureId}`;
+  const res = await api.get(endpoint);
+  const shape = Array.isArray(res.data)
+    ? { type: "array", length: res.data.length, firstKeys: res.data[0] && typeof res.data[0] === "object" ? Object.keys(res.data[0]).slice(0, 20) : [] }
+    : { type: typeof res.data, keys: res.data && typeof res.data === "object" ? Object.keys(res.data).slice(0, 20) : [] };
+  console.log(JSON.stringify({ level: "info", component: "txline", event: "historical_score_updates_returned", endpoint: TXLINE_HISTORICAL_SCORE_UPDATES_ENDPOINT, fixtureId: String(fixtureId), responseShape: shape }));
   return res.data;
 }

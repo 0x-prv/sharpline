@@ -1,5 +1,5 @@
 import { connectOddsStream, connectScoresStream } from "./txline/stream.js";
-import { getFixturesSnapshot } from "./txline/client.js";
+import { getFixturesSnapshot, getScoreUpdates, TXLINE_HISTORICAL_SCORE_UPDATES_ENDPOINT } from "./txline/client.js";
 import { checkForSharpMovement } from "./engine/detector.js";
 import { classifyMovement } from "./engine/correlator.js";
 import { detectMarketSignal, SHARP_THRESHOLD_PCT } from "./engine/signal-engine.js";
@@ -93,6 +93,43 @@ function normalizeFinishedAt(fixture: any, fallbackToNow = false) {
   const normalized = normalizeTxlineTime(value);
   if (normalized) return normalized;
   return fallbackToNow ? new Date().toISOString() : null;
+}
+
+
+function flattenTxlineUpdates(raw: any): any[] {
+  if (Array.isArray(raw)) return raw;
+  if (!raw || typeof raw !== "object") return [];
+  for (const key of ["Updates", "updates", "Scores", "scores", "Data", "data", "Items", "items", "Events", "events"]) {
+    if (Array.isArray(raw[key])) return raw[key];
+  }
+  return [raw];
+}
+
+function extractVerifiedFinalScoreFromHistoricalUpdates(fixtureId: string, raw: any) {
+  const updates = flattenTxlineUpdates(raw).filter((update) => String(update?.FixtureId ?? update?.fixtureId ?? fixtureId) === fixtureId);
+  const completedUpdates = updates
+    .filter((update) => update?.Confirmed !== false && isCompletedFixture(update))
+    .filter((update) => getTotalGoals(update?.Score, "Participant1") !== null && getTotalGoals(update?.Score, "Participant2") !== null);
+
+  const finalUpdate = completedUpdates.at(-1);
+  if (!finalUpdate) return null;
+
+  const finishedAt = normalizeFinishedAt(finalUpdate, false);
+  if (!finishedAt) {
+    console.log(JSON.stringify({ level: "warn", component: "worker", event: "historical_score_missing_completion_timestamp", fixture_id: fixtureId, endpoint: TXLINE_HISTORICAL_SCORE_UPDATES_ENDPOINT }));
+    return null;
+  }
+
+  return {
+    raw: finalUpdate,
+    score: {
+      home_h1: finalUpdate.Score?.Participant1?.H1?.Goals ?? 0,
+      away_h1: finalUpdate.Score?.Participant2?.H1?.Goals ?? 0,
+      home_total: Number(getTotalGoals(finalUpdate.Score, "Participant1")),
+      away_total: Number(getTotalGoals(finalUpdate.Score, "Participant2")),
+    },
+    finishedAt,
+  };
 }
 
 function normalizeScoreEvent(raw: any) {
@@ -484,20 +521,23 @@ async function reconcileStalePastKickoffFixtures() {
   const staleMatches = await getStalePastKickoffMatches(cutoff);
   if (!staleMatches.length) return { stale: 0, backfilled: 0 };
 
-  console.log(`[resolver] stale fixture reconciliation checking ${staleMatches.length} past-kickoff match(es)`);
-  const fixtures = await getFixturesSnapshot(WORLD_CUP_COMPETITION_ID);
-  const fixturesById = new Map(fixtures.map((fixture: any) => [String(fixture.FixtureId), fixture]));
+  console.log(JSON.stringify({ level: "info", component: "worker", event: "historical_finished_reconciliation_started", stale: staleMatches.length, endpoint: TXLINE_HISTORICAL_SCORE_UPDATES_ENDPOINT, dryRun: !process.argv.includes("--write") }));
   let backfilled = 0;
 
   for (const match of staleMatches) {
-    const fixture = fixturesById.get(String(match.id));
-    if (!fixture) {
-      console.log(`[resolver] stale fixture ${match.id} not found in TxLINE snapshot`);
+    const fixtureId = String(match.id);
+    const updates = await getScoreUpdates(fixtureId);
+    const final = extractVerifiedFinalScoreFromHistoricalUpdates(fixtureId, updates);
+    if (!final) {
+      console.log(JSON.stringify({ level: "info", component: "worker", event: "historical_finished_reconciliation_skipped", fixture_id: fixtureId, reason: "no_verified_completed_score", endpoint: TXLINE_HISTORICAL_SCORE_UPDATES_ENDPOINT }));
       continue;
     }
-    if (!isCompletedFixture(fixture)) continue;
 
-    await handleGameFinalised(fixture);
+    console.log(JSON.stringify({ level: "info", component: "worker", event: "historical_finished_reconciliation_verified", fixture_id: fixtureId, endpoint: TXLINE_HISTORICAL_SCORE_UPDATES_ENDPOINT, status: TERMINAL_MATCH_STATUS, final_home_score: final.score.home_total, final_away_score: final.score.away_total, completion_timestamp: final.finishedAt, write: process.argv.includes("--write") }));
+    if (!process.argv.includes("--write")) continue;
+
+    await saveFinalScore(fixtureId, final.score, final.finishedAt);
+    await resolveSignalsForFixture(fixtureId, final.score);
     backfilled++;
   }
 
@@ -622,9 +662,10 @@ async function main() {
 if (process.argv.includes("--reconcile-once")) {
   (async () => {
     await ensureTxlineSessionReady();
+    const write = process.argv.includes("--write");
     const result = await reconcileStalePastKickoffFixtures();
-    await reconcileCompletedMatches({ reconcileStaleFixtures: false });
-    console.log(JSON.stringify({ level: "info", component: "worker", event: "reconcile_once_complete", ...result }));
+    if (write) await reconcileCompletedMatches({ reconcileStaleFixtures: false });
+    console.log(JSON.stringify({ level: "info", component: "worker", event: "reconcile_once_complete", dryRun: !write, ...result }));
   })().catch((err) => {
     console.error("[worker] reconcile-once fatal error:", err?.response?.data || err.message || err);
     process.exit(1);
