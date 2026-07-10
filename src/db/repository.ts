@@ -12,6 +12,21 @@ export function isTerminalMatchStatus(status?: string | null) {
 function idempotencyKey(parts: Array<string | number | null | undefined>) {
   return createHash("sha256").update(parts.map((part) => String(part ?? "")).join("|")).digest("hex");
 }
+function serializeDatabaseError(error: unknown) {
+  if (!error || typeof error !== "object") return { message: String(error) };
+  const record = error as Record<string, unknown>;
+  return {
+    code: record.code ?? null,
+    message: record.message ?? String(error),
+    detail: record.detail ?? null,
+    hint: record.hint ?? null,
+    constraint: record.constraint ?? null,
+    table: record.table ?? null,
+    schema: record.schema ?? null,
+    name: record.name ?? null,
+    stack: record.stack ?? null,
+  };
+}
 
 export function marketSignalIdempotencyKey(signal: { fixture_id: string; market: string; selection: string; reason_code: string; action: string; occurred_at?: string | null }) {
   const occurred = signal.occurred_at ? new Date(signal.occurred_at) : new Date();
@@ -319,19 +334,53 @@ export async function insertMarketSignal(signal: {
   is_demo?: boolean;
 }) {
   const payload = { ...signal, idempotency_key: signal.idempotency_key ?? marketSignalIdempotencyKey(signal) };
-  console.log(JSON.stringify({ level: "info", component: "db", event: "market_signal_insert_attempted", fixture_id: payload.fixture_id, market: payload.market, selection: payload.selection, movement_pct: payload.movement_pct, threshold_context: "detector_passed", idempotency_key: payload.idempotency_key }));
-  const { data, error } = await supabase.from("market_signals").upsert(payload, { onConflict: "idempotency_key", ignoreDuplicates: true }).select("id").maybeSingle();
-  if (error) {
-    console.error(JSON.stringify({ level: "error", component: "db", event: "market_signal_insert_failed", fixture_id: payload.fixture_id, market: payload.market, selection: payload.selection, idempotency_key: payload.idempotency_key, error: error.message }));
+  const insertPayloadForLog = {
+    fixture_id: payload.fixture_id,
+    market: payload.market,
+    selection: payload.selection,
+    current_odds: payload.current_odds,
+    previous_odds: payload.previous_odds,
+    reason_code: payload.reason_code,
+    action: payload.action,
+    occurred_at: payload.occurred_at,
+    idempotency_key: payload.idempotency_key,
+  };
+  console.log(JSON.stringify({ level: "info", component: "db", event: "market_signal_insert_attempted", ...insertPayloadForLog, movement_pct: payload.movement_pct, threshold_context: "detector_passed" }));
+
+  let result: { data: { id: string } | null; error: unknown };
+  try {
+    result = await supabase.from("market_signals").upsert(payload, { onConflict: "idempotency_key", ignoreDuplicates: true }).select("id").maybeSingle();
+  } catch (error) {
+    console.error(JSON.stringify({
+      level: "error",
+      component: "db",
+      event: "market_signal_insert_exception",
+      postgres_error: serializeDatabaseError(error),
+      postgrest_error: error,
+      insert_payload: insertPayloadForLog,
+    }));
+    throw error;
+  }
+
+  if (result.error) {
+    console.error(JSON.stringify({
+      level: "error",
+      component: "db",
+      event: "market_signal_insert_failed",
+      postgres_error: serializeDatabaseError(result.error),
+      postgrest_error: result.error,
+      insert_payload: insertPayloadForLog,
+    }));
+    throw result.error;
+  }
+
+  if (!result.data?.id) {
+    console.log(JSON.stringify({ level: "warn", component: "db", event: "market_signal_insert_skipped_duplicate", ...insertPayloadForLog }));
     return null;
   }
-  if (!data?.id) {
-    console.log(JSON.stringify({ level: "warn", component: "db", event: "market_signal_insert_skipped_duplicate", fixture_id: payload.fixture_id, market: payload.market, selection: payload.selection, idempotency_key: payload.idempotency_key }));
-    return null;
-  }
-  console.log(JSON.stringify({ level: "info", component: "db", event: "market_signal_insert_succeeded", signal_id: data.id, fixture_id: payload.fixture_id, market: payload.market, selection: payload.selection, movement_pct: payload.movement_pct, idempotency_key: payload.idempotency_key }));
-  console.log(JSON.stringify({ level: "info", component: "signal", signal_id: data.id, ...payload }));
-  return data.id as string;
+  console.log(JSON.stringify({ level: "info", component: "db", event: "market_signal_insert_succeeded", signal_id: result.data.id, fixture_id: payload.fixture_id, market: payload.market, selection: payload.selection, movement_pct: payload.movement_pct, idempotency_key: payload.idempotency_key }));
+  console.log(JSON.stringify({ level: "info", component: "signal", signal_id: result.data.id, ...payload }));
+  return result.data.id as string;
 }
 
 export async function insertAgentRun(run: {
