@@ -58,6 +58,7 @@ function buildMemoText(signal: ResolvedSignalForAnchor): string {
 
 /**
  * Writes a SharpLine integrity memo for a resolved signal via the Solana Memo Program.
+ * This anchors SharpLine's own resolved signal record via the Solana Memo Program and does NOT validate against TxLINE's txoracle Merkle root system.
  * Returns the transaction signature, or null if the send failed
  * (failures are logged but never crash the caller, anchoring is
  * best-effort and must not block the resolver pipeline).
