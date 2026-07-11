@@ -10,7 +10,7 @@ export function TournamentBracket({ data }: { data: TournamentBracketData }) {
         <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-display text-4xl font-semibold tracking-[-0.04em] text-text">World Cup knockout bracket</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-text-muted">Auto-updating public bracket context. TxLINE remains Sharpline&apos;s sole source for live signal, odds, resolution, and anchoring workflows.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-text-muted">Auto-updating public bracket context. TxLINE remains Sharpline&apos;s source for live signal, odds, and resolution data. Solana Memo links are SharpLine integrity records.</p>
           </div>
           <p className="rounded-full border border-border bg-bg px-3 py-1.5 font-data text-[11px] text-text-muted">Bracket data: openfootball (public domain)</p>
         </div>
@@ -50,5 +50,5 @@ function BracketCard({ match }: { match: BracketMatch }) {
 }
 
 function TeamRow({ name, score, winner }: { name: string; score: number | null; winner: boolean }) {
-  return <div className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 ${winner ? "bg-signal-green/10 text-text" : "text-text-muted"}`}><span className="truncate text-sm">{name === "TBD" ? "TBD" : <TeamWithFlag teamName={name} />}</span><span className="font-data text-sm text-text">{score ?? "—"}</span></div>;
+  return <div className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 ${winner ? "bg-signal-green/10 text-text" : "text-text-muted"}`}><span className="truncate text-sm">{name === "TBD" ? "TBD" : <TeamWithFlag teamName={name} />}</span><span className="font-data text-sm text-text">{score ?? "-"}</span></div>;
 }

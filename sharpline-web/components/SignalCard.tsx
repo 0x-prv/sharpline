@@ -28,7 +28,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="rounded-full border border-signal-green/20 bg-signal-green/10 px-3 py-1 font-data text-[11px] uppercase text-signal-green">Live</div>
-            {signal.anchor_tx_signature ? <a href={solanaTxUrl(signal.anchor_tx_signature)} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-full border border-signal-blue/30 bg-signal-blue/10 px-3 py-1 text-xs font-semibold text-signal-blue"><Anchor className="h-3.5 w-3.5" /> ⚓ Anchored on Solana</a> : null}
+            {signal.anchor_tx_signature ? <a href={solanaTxUrl(signal.anchor_tx_signature)} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-full border border-signal-blue/30 bg-signal-blue/10 px-3 py-1 text-xs font-semibold text-signal-blue"><Anchor className="h-3.5 w-3.5" /> ⚓ SharpLine integrity record (Solana Memo)</a> : null}
           </div>
         </div>
         <svg viewBox="0 0 100 44" className="mt-6 h-14 w-full" preserveAspectRatio="none" aria-label="Mini sparkline">
