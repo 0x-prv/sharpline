@@ -6,7 +6,7 @@ import { detectMarketSignal, SHARP_THRESHOLD_PCT } from "./engine/signal-engine.
 import { explainSignal, fallbackExplanation } from "./ai/explain.js";
 import type { MatchState } from "./types.js";
 import { resolveSignal } from "./engine/resolver.js";
-import { anchorSignalOnChain } from "./chain/memo.js";
+import { anchorSignalMemo } from "./chain/memo.js";
 import { saveAnchorTx, saveMarketSignalAnchorTx } from "./db/repository.js";
 import {
   upsertFixture,
@@ -31,6 +31,7 @@ import {
   TERMINAL_MATCH_STATUS,
 } from "./db/repository.js";
 import { ensureTxlineSessionReady } from "./txline/session.js";
+import { getSelectedWorldCupServiceLevel } from "./txline/auth.js";
 import {
   refreshFixtureWindows,
   isAnyMatchActive,
@@ -402,7 +403,7 @@ async function resolveSignalsForFixture(fixtureId: string, finalScore?: { home_h
     console.log(`[resolver] market signal ${signal.id} ${signal.market}/${signal.selection} -> ${outcome}`);
 
     if (resolved && (outcome === "won" || outcome === "lost")) {
-      const signature = await anchorSignalOnChain({
+      const signature = await anchorSignalMemo({
         id: signal.id,
         fixture_id: signal.fixture_id,
         market: signal.market,
@@ -459,10 +460,10 @@ async function handleGameFinalised(data: any) {
     await updateSignalOutcome(signal.id, outcome);
     console.log(`[resolver] ${signal.market}/${signal.selection} -> ${outcome}`);
 
-    // Anchor on-chain for definitive won/lost outcomes (pushes are skipped —
-    // no clear win/loss to attest to)
+    // Write a SharpLine integrity memo for definitive won/lost outcomes.
+    // Pushes are skipped because there is no clear win/loss to record.
     if (outcome === "won" || outcome === "lost") {
-      const signature = await anchorSignalOnChain({
+      const signature = await anchorSignalMemo({
         id: signal.id,
         fixture_id: signal.fixture_id,
         market: signal.market,
@@ -622,6 +623,9 @@ async function runActiveWindow() {
 }
 
 async function main() {
+  const selectedServiceLevel = getSelectedWorldCupServiceLevel();
+  console.log(JSON.stringify({ level: "info", component: "txline", event: "service_level_selected", network: selectedServiceLevel.network, serviceLevelId: selectedServiceLevel.serviceLevelId, delay: selectedServiceLevel.delay }));
+
   try {
     await ensureTxlineSessionReady();
   } catch (err: any) {
@@ -642,17 +646,17 @@ async function main() {
   }, RECONCILIATION_INTERVAL_MS);
   await reconcileCompletedMatches();
 
-  console.log("[worker] scheduler started — autonomous mode");
+  console.log("[worker] scheduler started - autonomous mode");
 
   while (true) {
     if (isAnyMatchActive()) {
-      console.log("[worker] match window active — connecting streams");
+      console.log("[worker] match window active - connecting streams");
       await runActiveWindow();
       if (isAnyMatchActive()) await sleep(STREAM_RECONNECT_BACKOFF_MS);
     } else {
       const waitMs = Math.min(msUntilNextWindowChange(), REFRESH_INTERVAL_MS);
       const waitMin = Math.max(1, Math.round(waitMs / 60000));
-      console.log(`[worker] no active match — sleeping ~${waitMin} min before re-check`);
+      console.log(`[worker] no active match - sleeping ~${waitMin} min before re-check`);
       await sleep(waitMs);
       await refreshFixtureWindows();
     }

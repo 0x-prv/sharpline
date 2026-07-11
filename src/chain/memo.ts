@@ -1,7 +1,18 @@
-import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { createHash } from "crypto";
 import { NETWORK_CONFIG } from "../txline/config.js";
 import { walletKeypair } from "../txline/wallet.js";
+
+/*
+ * This anchors SharpLine's own resolved signal record on-chain via the Solana Memo Program.
+ * It does NOT validate against TxLINE's txoracle Merkle root system. For actual
+ * TxLINE-verified proofs, a separate validation call against the daily_odds_roots
+ * or daily_scores_roots account is required, following the pattern in
+ * txodds/tx-on-chain examples/validation/validate_odds_onchain.ts and
+ * validate_scores_onchain.ts.
+ *
+ * TODO: Implement TxLINE proof validation by following those tx-on-chain validation scripts.
+ */
 
 const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
 
@@ -46,12 +57,12 @@ function buildMemoText(signal: ResolvedSignalForAnchor): string {
 }
 
 /**
- * Anchors a resolved signal on-chain via the Solana Memo Program.
+ * Writes a SharpLine integrity memo for a resolved signal via the Solana Memo Program.
  * Returns the transaction signature, or null if the send failed
- * (failures are logged but never crash the caller — anchoring is
+ * (failures are logged but never crash the caller, anchoring is
  * best-effort and must not block the resolver pipeline).
  */
-export async function anchorSignalOnChain(
+export async function anchorSignalMemo(
   signal: ResolvedSignalForAnchor
 ): Promise<string | null> {
   try {

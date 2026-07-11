@@ -24,7 +24,7 @@ export function PastMatchSignals({ matches }: { matches: CompletedMatch[] }) {
                 {!match.replayAvailable ? <p className="mt-1 text-xs text-text-muted">Replay unavailable because no TxLINE odds snapshots or SharpLine signals were stored for this match.</p> : null}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {match.anchor_tx_signature ? <a href={solanaTxUrl(match.anchor_tx_signature)} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-full border border-signal-blue/30 bg-signal-blue/10 px-3 py-1 text-xs font-semibold text-signal-blue"><Anchor className="h-3.5 w-3.5" /> ⚓ Anchored on Solana</a> : null}
+                {match.anchor_tx_signature ? <a href={solanaTxUrl(match.anchor_tx_signature)} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-full border border-signal-blue/30 bg-signal-blue/10 px-3 py-1 text-xs font-semibold text-signal-blue"><Anchor className="h-3.5 w-3.5" /> ⚓ SharpLine integrity record (Solana Memo)</a> : null}
                 <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-text-muted"><Trophy className="h-3.5 w-3.5 text-signal-green" /> ROI {formatNumber(match.roi)}</div>
               </div>
             </div>
