@@ -34,6 +34,16 @@ export type SignalAccuracyStats = {
   cumulative: SignalAccuracyPoint[];
 };
 
+
+export type AgentReasoningLogEntry = {
+  id: string;
+  action: string;
+  confidence: number | null;
+  reason_code: string | null;
+  explanation: string | null;
+  occurred_at: string | null;
+};
+
 export type ResolvedSignal = {
   id: string;
   fixture_id: string;
@@ -266,6 +276,20 @@ export async function getRecentLiveSignals(limit = 10) {
 }
 
 export const getRecentSignals = getRecentLiveSignals;
+
+export async function getAgentReasoningLog(limit = 30): Promise<AgentReasoningLogEntry[]> {
+  try {
+    const { data, error } = await supabaseServer
+      .from("market_signals")
+      .select("id, action, confidence, reason_code, explanation, occurred_at")
+      .eq("is_demo", false)
+      .not("explanation", "is", null)
+      .order("occurred_at", { ascending: false })
+      .limit(limit);
+    if (error) { console.error("[queries] getAgentReasoningLog error", error.message); return []; }
+    return (data ?? []).slice().reverse();
+  } catch (err) { console.error("[queries] getAgentReasoningLog exception", err); return []; }
+}
 
 export async function getOddsHistory(fixtureId: string, market: string, limit = 60) {
   try {
