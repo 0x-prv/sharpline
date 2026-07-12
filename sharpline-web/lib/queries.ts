@@ -95,7 +95,7 @@ export async function getLiveFixtures() {
       .eq("is_demo", false)
       .in("status", ACTIVE_MATCH_STATUSES)
       .is("finished_at", null)
-      .gte("kickoff_at", now)
+      .or(`status.in.(live,live_or_upcoming),and(status.eq.scheduled,kickoff_at.gte.${now})`)
       .order("kickoff_at", { ascending: true });
     if (error) { console.error("[queries] query error", error.message); return []; }
     return data ?? [];

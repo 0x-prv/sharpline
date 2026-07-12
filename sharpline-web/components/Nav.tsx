@@ -11,8 +11,9 @@ const LINKS = [
   { href: "/bracket", label: "Bracket", icon: GitBranch },
 ];
 
-export function Nav() {
+export function Nav({ hasActiveMatch = false, txlineConnected = false }: { hasActiveMatch?: boolean; txlineConnected?: boolean }) {
   const pathname = usePathname();
+  const statusLabel = txlineConnected && hasActiveMatch ? "LIVE · Connected to TxLINE" : "LIVE · Waiting for next TxLINE match";
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-bg/92 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
@@ -49,7 +50,7 @@ export function Nav() {
           <button className="hidden h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-text-muted hover:bg-card hover:text-text sm:flex" aria-label="Alerts"><Bell className="h-4 w-4" /></button>
           <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2">
             <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal-green opacity-50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-signal-green" /></span>
-            <span className="font-data text-[11px] uppercase text-text-muted">TxLINE Live</span>
+            <span className="font-data text-[11px] uppercase text-text-muted">{statusLabel}</span>
           </div>
         </div>
       </div>
