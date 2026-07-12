@@ -26,11 +26,11 @@ export function Hero({ stats, hasActiveMatch, agentState, signals, nextFixture }
   return (
     <section className="border-b border-border">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-14">
-        <div className="grid gap-6 lg:grid-cols-[1.05fr_.95fr] lg:items-end">
-          <div className="relative isolate min-h-[520px] overflow-hidden rounded-[28px] border border-border bg-bg/40 p-5 shadow-[0_24px_80px_rgba(0,0,0,.24)] sm:p-8 lg:flex lg:min-h-[560px] lg:flex-col lg:items-start lg:justify-start lg:p-10">
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_.95fr] lg:items-start">
+          <div className="relative isolate flex min-h-[520px] flex-col items-start justify-start overflow-hidden rounded-[28px] border border-border bg-bg/40 p-5 shadow-[0_24px_80px_rgba(0,0,0,.24)] sm:p-8 lg:min-h-[560px] lg:px-10 lg:pb-10 lg:pt-12">
             <AmbientTerminalChart />
             <div className="absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(8,9,10,.92),rgba(8,9,10,.76)_48%,rgba(8,9,10,.9)),linear-gradient(180deg,rgba(8,9,10,.2),rgba(8,9,10,.88))]" />
-            <div className="hero-copy-enter relative z-10 flex max-w-3xl flex-col gap-4 sm:gap-6 lg:gap-8">
+            <div className="hero-copy-enter relative z-10 flex max-w-3xl flex-col gap-4 md:gap-6">
               <p className="kicker text-signal-blue">LIVE MARKET DESK</p>
               <div className="flex flex-wrap gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[13px] text-text-muted">
