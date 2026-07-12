@@ -5,14 +5,15 @@ import { QuickNavCards } from "../components/QuickNavCards";
 import { PastMatchSignals } from "../components/PastMatchSignals";
 import { AutonomousMonitoringConsole } from "../components/AutonomousMonitoringConsole";
 import { AgentReasoningLog } from "../components/AgentReasoningLog";
-import { getAgentReasoningLog, getAgentState, getCompletedMatches, getLatestLiveSignal, getLatestResolvedSignal, getLiveFixtures, getLiveSignalStats, getNextFixture, getRecentLiveSignals } from "../lib/queries";
+import { OnChainAnchorLedger } from "../components/OnChainAnchorLedger";
+import { getAgentReasoningLog, getAgentState, getCompletedMatches, getLatestLiveSignal, getLatestResolvedSignal, getLiveFixtures, getLiveSignalStats, getNextFixture, getOnChainAnchorLedger, getRecentLiveSignals } from "../lib/queries";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 15;
 
 export default async function OverviewPage() {
-  const [agentState, fixtures, latestSignal, latestResolvedSignal, recentSignals, reasoningLog, stats, completedMatches, nextFixture] = await Promise.all([
-    getAgentState(), getLiveFixtures(), getLatestLiveSignal(), getLatestResolvedSignal(), getRecentLiveSignals(4), getAgentReasoningLog(40), getLiveSignalStats(), getCompletedMatches(4), getNextFixture(),
+  const [agentState, fixtures, latestSignal, latestResolvedSignal, recentSignals, reasoningLog, stats, completedMatches, nextFixture, anchorLedger] = await Promise.all([
+    getAgentState(), getLiveFixtures(), getLatestLiveSignal(), getLatestResolvedSignal(), getRecentLiveSignals(4), getAgentReasoningLog(40), getLiveSignalStats(), getCompletedMatches(4), getNextFixture(), getOnChainAnchorLedger(12),
   ]);
   const activeFixtures = fixtures.filter((fixture) => fixture.status === "live_or_upcoming" || fixture.status === "live");
   const hasActiveMatch = activeFixtures.length > 0;
@@ -25,7 +26,10 @@ export default async function OverviewPage() {
           <SignalCard signal={latestSignal ?? latestResolvedSignal} />
           <AutonomousMonitoringConsole agentState={agentState} fixtures={fixtures} recentSignals={recentSignals.length ? recentSignals : latestResolvedSignal ? [latestResolvedSignal] : []} />
         </div>
-        <AgentReasoningLog entries={reasoningLog} groqLive={Boolean(process.env.GROQ_API_KEY)} />
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <AgentReasoningLog entries={reasoningLog} groqLive={Boolean(process.env.GROQ_API_KEY)} />
+          <OnChainAnchorLedger entries={anchorLedger} />
+        </div>
         <PastMatchSignals matches={completedMatches} />
         <QuickNavCards />
       </div>
