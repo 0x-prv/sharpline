@@ -1,6 +1,7 @@
 "use client";
 
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { ChartLegend } from "./ChartLegend";
 import { formatMarketSelection } from "./copy";
 
 type Tick = { price: number; received_at: string; selection: string; market: string };
@@ -14,6 +15,8 @@ export function OddsChart({ ticks }: { ticks: Tick[] }) {
   const last = ticks[ticks.length - 1];
   const movement = ((Number(last.price) - Number(first.price)) / Number(first.price)) * 100;
   const chartData = ticks.map((t) => ({ time: new Date(t.received_at).toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", hour: "2-digit" }), odds: Number(t.price) }));
+  const accent = "#4D8DFF";
+  const legendItems = [{ color: accent, label: formatMarketSelection(first.market, first.selection) }];
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-6">
@@ -29,14 +32,15 @@ export function OddsChart({ ticks }: { ticks: Tick[] }) {
           <Mini label="Direction" value={movement < 0 ? "Shortening" : "Drifting"} />
         </div>
       </div>
-      <div className="mt-6 h-[260px]">
+      <div className="relative mt-6 h-[260px]">
+        <ChartLegend items={legendItems} className="right-2 top-2" />
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid stroke="#22262B" vertical={false} />
             <XAxis dataKey="time" stroke="#8A9099" fontSize={11} tickLine={false} label={{ value: "Time", fill: "#8A9099", fontSize: 11, position: "insideBottom", offset: -4 }} />
             <YAxis stroke="#8A9099" fontSize={11} tickLine={false} domain={[(dataMin: number) => dataMin - 0.2, (dataMax: number) => dataMax + 0.2]} tickFormatter={(value: number) => value.toFixed(1)} label={{ value: "Odds", angle: -90, fill: "#8A9099", fontSize: 11, position: "insideLeft" }} />
             <Tooltip contentStyle={{ background: "#14171B", border: "1px solid #22262B", borderRadius: 12, fontSize: 12 }} />
-            <Line type="monotone" dataKey="odds" stroke="#4D8DFF" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="odds" stroke={accent} strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>

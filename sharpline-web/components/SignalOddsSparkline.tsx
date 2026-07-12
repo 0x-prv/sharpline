@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ChartLegend } from "./ChartLegend";
+import { formatMarketSelection } from "./copy";
 
 type OddsTick = { price: number; received_at: string; selection?: string | null; market?: string | null };
 type Signal = { fixture_id: string; market: string; selection: string; movement_pct: number };
@@ -13,6 +15,7 @@ export function SignalOddsSparkline({ signal, initialTicks }: { signal: Signal; 
   const signalKey = `${signal.fixture_id}:${signal.market}:${signal.selection}`;
   const [liveTicks, setLiveTicks] = useState<{ key: string; ticks: OddsTick[] }>({ key: signalKey, ticks: [] });
   const accent = Number(signal.movement_pct) < 0 ? "#22C55E" : "#4D8DFF";
+  const legendItems = useMemo(() => [{ color: accent, label: formatMarketSelection(signal.market, signal.selection) }], [accent, signal.market, signal.selection]);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +41,8 @@ export function SignalOddsSparkline({ signal, initialTicks }: { signal: Signal; 
   }
 
   return (
-    <div className="mt-6 h-14 w-full" aria-label="Live odds sparkline with axis labels">
+    <div className="relative mt-6 h-14 w-full" aria-label="Live odds sparkline with axis labels">
+      <ChartLegend items={legendItems} className="right-1 top-1" />
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chartData} margin={{ top: 3, right: 8, left: -22, bottom: 0 }}>
           <defs>
