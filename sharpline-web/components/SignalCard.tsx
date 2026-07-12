@@ -1,5 +1,5 @@
 import { Anchor, Clock, Radio, ShieldAlert, TrendingUp } from "lucide-react";
-import { actionTone, explainReason, formatMarketSelection } from "./copy";
+import { actionTone, explainReason, formatMarketDetail, formatMarketSelection } from "./copy";
 import { MatchWithFlags } from "./Flag";
 import { SignalOddsSparkline } from "./SignalOddsSparkline";
 import { SafeMarkdown } from "./SafeMarkdown";
@@ -24,7 +24,10 @@ export function SignalCard({ signal, oddsTicks = [] }: { signal: Signal; oddsTic
           <div>
             <p className="kicker">Latest AI Match Signal</p>
             <div className="mt-4 flex items-center gap-3">
-              <h2 className="text-4xl font-semibold tracking-[-0.04em] text-text">{formatMarketSelection(signal.market, signal.selection)}</h2>
+              <div>
+                <h2 className="text-4xl font-semibold tracking-[-0.04em] text-text">{formatMarketSelection(signal.market, signal.selection)}</h2>
+                <p className="mt-1 text-xs text-text-muted">{formatMarketDetail(signal.market, signal.id)}</p>
+              </div>
               <span className={`rounded-full border px-3 py-1 font-data text-xs ${actionTone(signal.action)}`}>{side}</span>
             </div>
             <p className="mt-2 text-sm text-text-muted"><MatchWithFlags match={signal.match} /> · {formatMarketSelection(signal.market, signal.selection)}</p>

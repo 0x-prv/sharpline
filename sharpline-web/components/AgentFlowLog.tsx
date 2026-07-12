@@ -1,5 +1,5 @@
 import { Brain, Database, Radio, ShieldCheck, TrendingUp } from "lucide-react";
-import { actionTone, explainAction, explainReason, formatMarketSelection } from "./copy";
+import { actionTone, explainAction, explainReason, formatMarketDetail, formatMarketSelection } from "./copy";
 
 const PROCESS_STEPS = [
   { title: "Monitor", body: "Continuously listens to TxLINE live odds.", icon: Radio },
@@ -11,7 +11,7 @@ const PROCESS_STEPS = [
 
 const FALLBACK_EVENTS = ["Agent active", "Loaded today’s fixtures", "Connected to TxLINE", "Monitoring next live fixture"];
 
-type Signal = { market: string; selection: string; previous_odds: number; current_odds: number; movement_pct: number; reason_code: string; action: string; confidence: number; occurred_at: string; is_demo: boolean };
+type Signal = { id?: string; market: string; selection: string; previous_odds: number; current_odds: number; movement_pct: number; reason_code: string; action: string; confidence: number; occurred_at: string; is_demo: boolean };
 
 export function AgentFlowLog({ signals, mode = "full" }: { signals: Signal[]; mode?: "full" | "activity" | "timeline" }) {
   return (
@@ -52,6 +52,7 @@ export function AgentFlowLog({ signals, mode = "full" }: { signals: Signal[]; mo
                 <div>
                   <p className="text-xs text-text-muted">{new Date(s.occurred_at).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })}</p>
                   <p className="mt-1 text-sm text-text">{formatMarketSelection(s.market, s.selection)} odds {Number(s.movement_pct) < 0 ? "dropped" : "moved"}</p>
+                  <p className="mt-0.5 truncate text-xs text-text-muted">{formatMarketDetail(s.market, s.id)}</p>
                   <p className="mt-1 font-display text-lg text-text">{Number(s.previous_odds).toFixed(2)} → {Number(s.current_odds).toFixed(2)} <span className="text-sm text-signal-coral">({Number(s.movement_pct) > 0 ? "+" : ""}{Number(s.movement_pct).toFixed(1)}%)</span></p>
                   <p className="mt-2 text-xs text-text-muted">{explainReason(s.reason_code)}</p>
                 </div>
