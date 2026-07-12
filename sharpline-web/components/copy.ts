@@ -7,10 +7,30 @@ export function formatMarketSelection(market?: string, selection?: string) {
     return cleanSelection ? `${cleanSelection} Win` : "Match Winner";
   }
 
-  if (market?.includes("OVER_UNDER") || lower.includes("over") || lower.includes("under")) return cleanSelection || "Total Goals";
+  if (market?.includes("OVER_UNDER") || market?.includes("OVERUNDER") || lower.includes("over") || lower.includes("under")) return cleanSelection || "Total Goals";
   if (market?.includes("HANDICAP")) return cleanSelection ? `${cleanSelection} Handicap` : "Handicap Market";
 
   return cleanSelection || humanizeToken(market) || "Selected Market";
+}
+
+export function formatMarketDetail(market?: string, signalId?: string) {
+  const parsed = parseMarketToken(market);
+  const period = formatMarketPeriod(parsed.params.half);
+
+  if (parsed.type === "1X2_PARTICIPANT_RESULT") return compactDetail(["1X2", "Match Winner", period]);
+
+  if (parsed.type === "OVERUNDER_PARTICIPANT_GOALS" || parsed.type.includes("OVER_UNDER")) {
+    const total = parsed.params.line ? `O/U ${parsed.params.line}` : "Total Goals";
+    return compactDetail([total, period]);
+  }
+
+  if (parsed.type === "ASIANHANDICAP_PARTICIPANT_GOALS" || parsed.type.includes("HANDICAP")) {
+    const handicap = parsed.params.line ? `Handicap ${parsed.params.line}` : "Handicap";
+    return compactDetail([handicap, period]);
+  }
+
+  const fallbackMarket = humanizeToken(parsed.type || market);
+  return compactDetail([fallbackMarket, period]) || uniqueSignalReference(signalId);
 }
 
 export function humanizeToken(value?: string) {
@@ -21,6 +41,32 @@ export function humanizeToken(value?: string) {
     .trim()
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function parseMarketToken(market?: string) {
+  const [rawType = "", ...parts] = (market ?? "").split(":");
+  const params: Record<string, string> = {};
+
+  for (const part of parts) {
+    const [key, value] = part.split("=");
+    if (key && value) params[key] = value;
+  }
+
+  return { type: rawType, params };
+}
+
+function formatMarketPeriod(half?: string) {
+  if (half === "1") return "1st Half";
+  if (half === "2") return "2nd Half";
+  return "Full Match";
+}
+
+function compactDetail(parts: Array<string | undefined>) {
+  return parts.filter(Boolean).join(" · ");
+}
+
+function uniqueSignalReference(signalId?: string) {
+  return signalId ? `Signal #${signalId.slice(-4).toUpperCase()}` : "Market detail unavailable";
 }
 
 export function explainReason(reason?: string) {
