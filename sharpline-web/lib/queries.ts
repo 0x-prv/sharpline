@@ -44,6 +44,16 @@ export type AgentReasoningLogEntry = {
   occurred_at: string | null;
 };
 
+
+export type AnchorLedgerEntry = {
+  id: string;
+  match: string | null;
+  action: string | null;
+  occurred_at: string | null;
+  resolved_at: string | null;
+  anchor_tx_signature: string;
+};
+
 export type ResolvedSignal = {
   id: string;
   fixture_id: string;
@@ -234,6 +244,31 @@ export async function getSignalAccuracyStats(): Promise<SignalAccuracyStats> {
     console.error("[queries] getSignalAccuracyStats exception", err);
     return empty;
   }
+}
+
+export async function getOnChainAnchorLedger(limit = 12): Promise<AnchorLedgerEntry[]> {
+  try {
+    const { data, error } = await supabaseServer
+      .from("signal_resolutions")
+      .select("id, resolved_at, anchor_tx_signature, market_signals!inner(match, action, occurred_at, is_demo)")
+      .eq("market_signals.is_demo", false)
+      .not("anchor_tx_signature", "is", null)
+      .order("resolved_at", { ascending: false, nullsFirst: false })
+      .limit(limit);
+    if (error) { console.error("[queries] getOnChainAnchorLedger error", error.message); return []; }
+    return (data ?? []).flatMap((row) => {
+      const signal = relation(row.market_signals);
+      if (!row.anchor_tx_signature) return [];
+      return [{
+        id: row.id,
+        match: signal?.match ?? null,
+        action: signal?.action ?? null,
+        occurred_at: signal?.occurred_at ?? null,
+        resolved_at: row.resolved_at ?? null,
+        anchor_tx_signature: row.anchor_tx_signature,
+      }];
+    });
+  } catch (err) { console.error("[queries] getOnChainAnchorLedger exception", err); return []; }
 }
 
 export async function getLatestLiveSignal() {
