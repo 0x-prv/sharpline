@@ -27,12 +27,12 @@ export function Hero({ stats, hasActiveMatch, agentState, signals, nextFixture }
     <section className="border-b border-border">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-14">
         <div className="grid gap-6 lg:grid-cols-[1.05fr_.95fr] lg:items-end">
-          <div className="relative isolate min-h-[520px] overflow-hidden rounded-[28px] border border-border bg-bg/40 p-5 shadow-[0_24px_80px_rgba(0,0,0,.24)] sm:p-8 lg:flex lg:min-h-[560px] lg:items-center lg:p-10">
+          <div className="relative isolate min-h-[520px] overflow-hidden rounded-[28px] border border-border bg-bg/40 p-5 shadow-[0_24px_80px_rgba(0,0,0,.24)] sm:p-8 lg:flex lg:min-h-[560px] lg:flex-col lg:items-start lg:justify-start lg:p-10">
             <AmbientTerminalChart />
             <div className="absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(8,9,10,.92),rgba(8,9,10,.76)_48%,rgba(8,9,10,.9)),linear-gradient(180deg,rgba(8,9,10,.2),rgba(8,9,10,.88))]" />
-            <div className="hero-copy-enter relative z-10 max-w-3xl">
+            <div className="hero-copy-enter relative z-10 flex max-w-3xl flex-col gap-4 sm:gap-6 lg:gap-8">
               <p className="kicker text-signal-blue">LIVE MARKET DESK</p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[13px] text-text-muted">
                   <span className="h-1.5 w-1.5 rounded-full bg-signal-green" /> Autonomous monitoring for live World Cup matches
                 </div>
@@ -40,16 +40,16 @@ export function Hero({ stats, hasActiveMatch, agentState, signals, nextFixture }
                   <Zap className="h-3.5 w-3.5" /> Powered by TxLINE
                 </div>
               </div>
-              <h1 className="mt-6 max-w-4xl text-5xl font-semibold leading-[.96] tracking-[-0.045em] text-text md:text-[52px] lg:text-[56px]">
+              <h1 className="max-w-4xl text-5xl font-semibold leading-[.96] tracking-[-0.045em] text-text md:text-[52px] lg:text-[56px]">
                 Autonomous sports market intelligence powered by TxLINE.
               </h1>
-              <p className="mt-5 max-w-2xl text-[15px] leading-7 text-text-muted">
+              <p className="max-w-2xl text-[15px] leading-7 text-text-muted">
                 Collect live odds. Detect abnormal movement. Explain why it matters. Track outcomes. Measure accuracy.
               </p>
-              <div className="mt-6 grid overflow-hidden rounded-2xl border border-border bg-surface/65 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] sm:grid-cols-3">
+              <div className="grid overflow-hidden rounded-2xl border border-border bg-surface/65 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] sm:grid-cols-3">
                 {terminalStats.map((item, index) => <TerminalStat key={item.label} label={item.label} value={item.value} tone={item.tone} isFirst={index === 0} />)}
               </div>
-              <div className="mt-7 flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3">
                 <a className="rounded-full bg-text px-5 py-2.5 text-sm font-semibold text-bg hover:bg-text/90" href="/signals">View live signals</a>
                 <a className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-text-muted hover:bg-card hover:text-text" href="/analytics">See accuracy</a>
               </div>
