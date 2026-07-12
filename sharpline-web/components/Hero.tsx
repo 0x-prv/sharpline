@@ -9,6 +9,9 @@ type Fixture = { home_team: string; away_team: string; kickoff_at: string | null
 type Signal = { match: string; market: string; selection: string; movement_pct: number; action: string; confidence: number; severity?: string | null; occurred_at: string };
 
 export function Hero({ stats, hasActiveMatch, agentState, signals, nextFixture }: { stats: Stats; hasActiveMatch: boolean; agentState: AgentState | null; signals: Signal[]; nextFixture?: Fixture | null }) {
+  const txlineConnected = isConnectedStatus(agentState?.txline_status);
+  const liveStatusLabel = txlineConnected && hasActiveMatch ? "LIVE · Connected to TxLINE" : "LIVE · Waiting for next TxLINE match";
+  const visibleSignals = hasActiveMatch ? signals : [];
   const activeAgents = [agentState?.worker_status, agentState?.txline_status].filter((status) => status && status !== "error" && status !== "offline").length;
   const monitoredFixtures = agentState?.monitored_fixtures ?? agentState?.fixtures_loaded ?? null;
   const terminalStats = [
@@ -34,7 +37,7 @@ export function Hero({ stats, hasActiveMatch, agentState, signals, nextFixture }
               <p className="kicker text-signal-blue">LIVE MARKET DESK</p>
               <div className="flex flex-wrap gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[13px] text-text-muted">
-                  <span className="h-1.5 w-1.5 rounded-full bg-signal-green" /> Autonomous monitoring for live World Cup matches
+                  <span className="h-1.5 w-1.5 rounded-full bg-signal-green" /> {liveStatusLabel}
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-signal-blue/20 bg-signal-blue/10 px-3 py-1.5 text-[13px] text-signal-blue">
                   <Zap className="h-3.5 w-3.5" /> Powered by TxLINE
@@ -64,7 +67,7 @@ export function Hero({ stats, hasActiveMatch, agentState, signals, nextFixture }
               <span className="rounded-full border border-signal-green/20 bg-signal-green/10 px-3 py-1 font-data text-[11px] text-signal-green">{title(agentState?.txline_status) ?? "Online"}</span>
             </div>
             <div className="mt-4 space-y-3">
-              {signals.length ? signals.slice(0, 3).map((signal, index) => <LiveSignalCard key={`${signal.occurred_at}-${index}`} signal={signal} />) : <EmptyLiveSignal nextFixture={nextFixture} />}
+              {visibleSignals.length ? visibleSignals.slice(0, 3).map((signal, index) => <LiveSignalCard key={`${signal.occurred_at}-${index}`} signal={signal} />) : <EmptyLiveSignal nextFixture={nextFixture} />}
             </div>
           </div>
         </div>
@@ -96,3 +99,5 @@ function formatCount(value?: number | null) { return value === null || value ===
 function relativeTime(value: string) { const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000)); if (seconds < 60) return `${seconds}s ago`; const m = Math.round(seconds / 60); return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; }
 
 function actionLabel(action: string) { return action === "FADE" ? "Odds Correction" : action === "FOLLOW" ? "Momentum Shift" : action === "ALERT" ? "Match Alert" : action === "WATCH" ? "Monitor" : action; }
+
+function isConnectedStatus(status?: string | null) { return Boolean(status && !["error", "offline", "disconnected"].includes(status)); }
