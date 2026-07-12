@@ -49,7 +49,7 @@ export default async function SignalsPage() {
         )}
         <PastMatchSignals matches={completedMatches} />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <SignalCard signal={primarySignal} />
+          <SignalCard signal={primarySignal} oddsTicks={oddsTicks} />
           <OddsChart ticks={oddsTicks} />
         </div>
         <MatchReplay replay={replay} />

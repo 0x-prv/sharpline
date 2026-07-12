@@ -326,9 +326,11 @@ export async function getAgentReasoningLog(limit = 30): Promise<AgentReasoningLo
   } catch (err) { console.error("[queries] getAgentReasoningLog exception", err); return []; }
 }
 
-export async function getOddsHistory(fixtureId: string, market: string, limit = 60) {
+export async function getOddsHistory(fixtureId: string, market: string, limit = 60, selection?: string) {
   try {
-    const { data, error } = await supabaseServer.from("odds_snapshots").select("*").eq("fixture_id", fixtureId).eq("market", market).eq("is_demo", false).order("received_at", { ascending: true }).limit(limit);
+    let query = supabaseServer.from("odds_snapshots").select("*").eq("fixture_id", fixtureId).eq("market", market).eq("is_demo", false);
+    if (selection) query = query.eq("selection", selection);
+    const { data, error } = await query.order("received_at", { ascending: true }).limit(limit);
     if (error) { console.error("[queries] getRecentLiveSignals error", error.message); return []; }
     return data ?? [];
   } catch (err) { console.error("[queries] query exception", err); return []; }
@@ -391,8 +393,8 @@ export async function getLiveSignalStats() {
 export const getStats = getLiveSignalStats;
 export const getAnalytics = getLiveSignalStats;
 
-export async function getOddsHistoryForLatestSignal(signal: { fixture_id: string; market: string }, limit = 60) {
-  return getOddsHistory(signal.fixture_id, signal.market, limit);
+export async function getOddsHistoryForLatestSignal(signal: { fixture_id: string; market: string; selection?: string }, limit = 60) {
+  return getOddsHistory(signal.fixture_id, signal.market, limit, "selection" in signal ? (signal as { selection?: string }).selection : undefined);
 }
 
 function relation<T>(value: T | T[] | null | undefined): T | null {
