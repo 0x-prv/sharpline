@@ -22,6 +22,18 @@ export type CompletedMatch = {
   anchor_tx_signature: string | null;
 };
 
+
+export type SignalAccuracyAction = { action: "ALERT" | "FADE" | "FOLLOW" | "WATCH"; total: number; correct: number; accuracy: number | null };
+export type SignalAccuracyPoint = { label: string; resolvedAt: string; accuracy: number; correct: number; total: number };
+export type SignalAccuracyStats = {
+  totalSignals: number;
+  resolvedSignals: number;
+  correctSignals: number;
+  overallAccuracy: number | null;
+  byAction: SignalAccuracyAction[];
+  cumulative: SignalAccuracyPoint[];
+};
+
 export type ResolvedSignal = {
   id: string;
   fixture_id: string;
@@ -153,6 +165,65 @@ export async function getCompletedMatches(limit = 6): Promise<CompletedMatch[]> 
       };
     });
   } catch (err) { console.error("[queries] query exception", err); return []; }
+}
+
+export async function getSignalAccuracyStats(): Promise<SignalAccuracyStats> {
+  const empty: SignalAccuracyStats = {
+    totalSignals: 0,
+    resolvedSignals: 0,
+    correctSignals: 0,
+    overallAccuracy: null,
+    byAction: ["ALERT", "FADE", "FOLLOW", "WATCH"].map((action) => ({ action: action as SignalAccuracyAction["action"], total: 0, correct: 0, accuracy: null })),
+    cumulative: [],
+  };
+
+  try {
+    const [totalRes, resolutionsRes] = await Promise.all([
+      supabaseServer.from("market_signals").select("*", { count: "exact", head: true }).eq("is_demo", false),
+      supabaseServer
+        .from("signal_resolutions")
+        .select("outcome, resolved_at, market_signals!inner(is_demo, action)")
+        .eq("market_signals.is_demo", false)
+        .order("resolved_at", { ascending: true }),
+    ]);
+
+    if (totalRes.error) console.error("[queries] getSignalAccuracyStats total error", totalRes.error.message);
+    if (resolutionsRes.error) {
+      console.error("[queries] getSignalAccuracyStats resolutions error", resolutionsRes.error.message);
+      return { ...empty, totalSignals: totalRes.count ?? 0 };
+    }
+
+    const rows = resolutionsRes.data ?? [];
+    const totalSignals = totalRes.count ?? 0;
+    const resolvedSignals = rows.length;
+    const correctSignals = rows.filter((row) => row.outcome === "won").length;
+    const overallAccuracy = resolvedSignals ? Math.round((correctSignals / resolvedSignals) * 100) : null;
+
+    const byAction = empty.byAction.map(({ action }) => {
+      const actionRows = rows.filter((row) => relation(row.market_signals)?.action === action);
+      const correct = actionRows.filter((row) => row.outcome === "won").length;
+      return { action, total: actionRows.length, correct, accuracy: actionRows.length ? Math.round((correct / actionRows.length) * 100) : null };
+    });
+
+    let runningCorrect = 0;
+    const cumulative = rows.map((row, index) => {
+      if (row.outcome === "won") runningCorrect += 1;
+      const total = index + 1;
+      const resolvedAt = row.resolved_at ?? "";
+      return {
+        label: resolvedAt ? new Date(resolvedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : `#${total}`,
+        resolvedAt,
+        accuracy: Math.round((runningCorrect / total) * 100),
+        correct: runningCorrect,
+        total,
+      };
+    });
+
+    return { totalSignals, resolvedSignals, correctSignals, overallAccuracy, byAction, cumulative };
+  } catch (err) {
+    console.error("[queries] getSignalAccuracyStats exception", err);
+    return empty;
+  }
 }
 
 export async function getLatestLiveSignal() {

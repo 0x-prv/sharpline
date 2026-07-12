@@ -5,13 +5,13 @@ import { StatsRow } from "../../components/StatsRow";
 import { AgentHealth } from "../../components/AgentHealth";
 import { AnalyticsPanel } from "../../components/AnalyticsPanel";
 import { PastMatchSignals } from "../../components/PastMatchSignals";
-import { getAgentState, getCompletedMatches, getPastMatchPerformance, getResolvedSignals } from "../../lib/queries";
+import { getAgentState, getCompletedMatches, getPastMatchPerformance, getResolvedSignals, getSignalAccuracyStats } from "../../lib/queries";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 15;
 
 export default async function AnalyticsPage() {
-  const [agentState, resolvedSignals, performance, completedMatches] = await Promise.all([getAgentState(), getResolvedSignals(12), getPastMatchPerformance(), getCompletedMatches(8)]);
+  const [agentState, resolvedSignals, performance, completedMatches, signalAccuracy] = await Promise.all([getAgentState(), getResolvedSignals(12), getPastMatchPerformance(), getCompletedMatches(8), getSignalAccuracyStats()]);
 
   return (
     <main>
@@ -24,7 +24,7 @@ export default async function AnalyticsPage() {
       />
       <div className="mx-auto max-w-6xl space-y-4 px-6 py-10">
         <StatsRow stats={performance} />
-        <AnalyticsPanel stats={performance} signals={resolvedSignals} />
+        <AnalyticsPanel stats={performance} signals={resolvedSignals} signalAccuracy={signalAccuracy} />
         <PastMatchSignals matches={completedMatches} />
         <AgentHealth agentState={agentState} />
       </div>
