@@ -2,6 +2,7 @@ import { Anchor, Clock, Radio, ShieldAlert, TrendingUp } from "lucide-react";
 import { actionTone, explainReason, formatMarketSelection } from "./copy";
 import { MatchWithFlags } from "./Flag";
 import { SignalOddsSparkline } from "./SignalOddsSparkline";
+import { SafeMarkdown } from "./SafeMarkdown";
 
 const SOLANA_CLUSTER = process.env.NEXT_PUBLIC_TXLINE_NETWORK === "devnet" ? "devnet" : "mainnet";
 function solanaTxUrl(signature: string) { return `https://explorer.solana.com/tx/${signature}?cluster=${SOLANA_CLUSTER}`; }
@@ -50,7 +51,7 @@ export function SignalCard({ signal, oddsTicks = [] }: { signal: Signal; oddsTic
           <Mini label="Move" value={`${movement > 0 ? "+" : ""}${movement.toFixed(1)}%`} tone={movement < 0 ? "text-signal-green" : "text-signal-blue"} />
         </div>
         <div className="mt-6 grid gap-3">
-          {sections.map((section) => <div key={section.title} className="rounded-2xl border border-border bg-bg/60 p-4"><p className="flex items-center gap-2 text-sm font-semibold text-text"><section.icon className="h-4 w-4 text-signal-blue" />{section.title}</p><p className="mt-2 text-sm leading-6 text-text-muted">{section.body}</p></div>)}
+          {sections.map((section) => <div key={section.title} className="rounded-2xl border border-border bg-bg/60 p-4"><p className="flex items-center gap-2 text-sm font-semibold text-text"><section.icon className="h-4 w-4 text-signal-blue" />{section.title}</p><SafeMarkdown className="mt-2 space-y-2 text-sm leading-6 text-text-muted">{section.body}</SafeMarkdown></div>)}
         </div>
       </div>
     </article>
