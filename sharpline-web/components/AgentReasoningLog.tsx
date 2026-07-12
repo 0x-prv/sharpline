@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Terminal } from "lucide-react";
+import { SafeMarkdown } from "./SafeMarkdown";
 
 export type AgentReasoningLogEntry = {
   id: string;
@@ -78,15 +79,15 @@ export function AgentReasoningLog({ entries, groqLive }: { entries: AgentReasoni
               const action = (entry.action || "WATCH").toUpperCase();
               const confidence = Math.round(Number(entry.confidence ?? 0));
               return (
-                <p key={entry.id} className="whitespace-pre-wrap break-words text-emerald-200">
+                <div key={entry.id} className="whitespace-pre-wrap break-words text-emerald-200">
                   <span className="text-zinc-400">[{formatTimestamp(entry.occurred_at)}] </span>
                   <span className={actionClass(action)}>[{action}]</span>{" "}
                   <span className="text-white">{entry.reason_code ?? "UNKNOWN"}</span>{" "}
                   <span className="text-zinc-500">—</span>{" "}
                   <span className="font-bold text-emerald-300">{confidence}%</span>{" "}
                   <span className="text-zinc-500">—</span>{" "}
-                  <span className="text-zinc-100">{entry.explanation}</span>
-                </p>
+                  <SafeMarkdown className="inline text-zinc-100 [&>p]:inline [&>ul]:mt-1 [&>ul]:text-zinc-100">{entry.explanation}</SafeMarkdown>
+                </div>
               );
             })}
           </div>
