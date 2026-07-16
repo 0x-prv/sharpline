@@ -1,566 +1,440 @@
-> ## Documentation Index
-> Fetch the complete documentation index at: https://txline-docs.txodds.com/llms.txt
-> Use this file to discover all available pages before exploring further.
+# SharpLine
 
-# Quickstart
+SharpLine is an autonomous football market intelligence platform built for the FIFA World Cup. It monitors live TxLINE scores and betting odds, detects meaningful market movements, and converts them into structured, explainable signals.
 
-> Get started with the TxLINE API in minutes
+Rather than predicting match winners or presenting generic betting tips, SharpLine focuses on how markets behave. It identifies sharp price movements, consensus shifts, reversals, post-event reactions, and unusual odds activity using deterministic detection rules.
 
-## Overview
+AI is used only to explain verified signals. It does not invent odds, fixtures, scores, or market activity.
 
-TxLINE provides cryptographically verifiable sports data through a hybrid Solana on-chain and TxODDS off-chain system. Access fixtures, odds, and scores with time-limited API tokens secured by on-chain subscriptions.
+## Core Principle
 
-***
+> TxLINE provides live market data.  
+> The signal engine detects measurable changes.  
+> AI explains the evidence.  
+> The user makes the decision.
 
-## Getting Started
+## Key Features
 
-<Info>
-  **Want to try for free?** Check out our [World Cup Free Tier](/documentation/worldcup) for instant access to World Cup and International Friendlies data with no payment required.
-</Info>
+- Live FIFA World Cup fixture monitoring
+- TxLINE score and odds ingestion
+- Autonomous market signal detection
+- Historical odds movement tracking
+- Deterministic signal classification
+- AI-generated signal explanations
+- Signal lifecycle and resolution tracking
+- Finished-match reconciliation
+- Historical signal backfilling
+- Agent execution and health monitoring
+- Live-first interface with no fabricated match data
 
-Choose the path that matches your use case:
+## Signal Types
 
-* **Free World Cup path**: Follow the [World Cup Free Tier](/documentation/worldcup) guide for service levels 1 or 12. No TxL purchase is required.
-* **Paid subscription path**: Continue below to purchase TxL if needed, subscribe on-chain, and activate an API token.
+SharpLine detects several categories of market behavior.
 
-## Select Your Network
+### Sharp Move
 
-Pick one network and use it consistently for every step. The Solana RPC, program ID, TxL mint, guest JWT, and activation endpoint must all be on the same network.
+Detects a significant odds movement within a defined period. This can indicate that new information or concentrated market activity has affected the price.
 
-```typescript theme={null}
-import * as anchor from "@coral-xyz/anchor";
-import type { Txoracle } from "./types/txoracle"; // Use the matching mainnet/devnet type
-import txoracleIdl from "./idl/txoracle.json"; // Use the matching mainnet/devnet IDL
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  TOKEN_2022_PROGRAM_ID,
-  getAssociatedTokenAddressSync,
-} from "@solana/spl-token";
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
-import axios from "axios";
-import nacl from "tweetnacl";
+### Consensus Shift
 
-const NETWORK: "mainnet" | "devnet" = "mainnet";
+Triggered when multiple related markets move in the same direction, suggesting broader agreement across available market data.
 
-const CONFIG = {
-  mainnet: {
-    rpcUrl: "https://api.mainnet-beta.solana.com",
-    apiOrigin: "https://txline.txodds.com",
-    programId: new PublicKey("9ExbZjAapQww1vfcisDmrngPinHTEfpjYRWMunJgcKaA"),
-    txlTokenMint: new PublicKey("Zhw9TVKp68a1QrftncMSd6ELXKDtpVMNuMGr1jNwdeL"),
-  },
-  devnet: {
-    rpcUrl: "https://api.devnet.solana.com",
-    apiOrigin: "https://txline-dev.txodds.com",
-    programId: new PublicKey("6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J"),
-    txlTokenMint: new PublicKey("4Zao8ocPhmMgq7PdsYWyxvqySMGx7xb9cMftPMkEokRG"),
-  },
-} as const;
+### No-Score-Change Move
 
-const { rpcUrl, apiOrigin, programId, txlTokenMint } = CONFIG[NETWORK];
-const apiBaseUrl = `${apiOrigin}/api`;
+Detects meaningful odds movement without a corresponding score change. This may reflect tactical pressure, player events, market positioning, or information not yet visible in the scoreline.
 
-const connection = new Connection(rpcUrl, "confirmed");
-const provider = new anchor.AnchorProvider(connection, wallet, {
-  commitment: "confirmed",
-});
-anchor.setProvider(provider);
+### Post-Event Move
 
-const program = new anchor.Program<Txoracle>(
-  txoracleIdl as Txoracle,
-  provider
-);
+Tracks market reactions following verified match events such as goals, cards, kickoff, halftime, or fulltime.
 
-if (!program.programId.equals(programId)) {
-  throw new Error(
-    `Loaded IDL program ${program.programId.toBase58()} does not match ${NETWORK} program ${programId.toBase58()}`
-  );
-}
+### Reversal
+
+Detects when an earlier market movement changes direction. This may indicate that the original move was rejected or that new information changed market expectations.
+
+### Anomaly
+
+Flags market behavior that does not match expected movement patterns or exceeds configured thresholds.
+
+## Signal Actions
+
+Every detected signal receives a deterministic action label.
+
+| Action | Meaning |
+|---|---|
+| `WATCH` | Monitor the market because a meaningful change has started |
+| `ALERT` | A strong or unusual market movement requires attention |
+| `FOLLOW` | The movement has supporting evidence or continued confirmation |
+| `FADE` | The movement appears to be weakening or reversing |
+
+These actions are generated by the signal engine. The AI explanation cannot modify the underlying classification.
+
+## System Architecture
+
+```mermaid
+flowchart TD
+    A["TxLINE API"] --> B["SharpLine Worker"]
+    B --> C["Data Normalization"]
+    C --> D["Supabase"]
+    C --> E["Signal Detector"]
+    E --> F["Signal Classification"]
+    F --> D
+    F --> G["Groq Explanation"]
+    G --> D
+    D --> H["Next.js Dashboard"]
+````
+
+### Data Ingestion
+
+The background worker retrieves:
+
+* Fixture snapshots
+* Live score updates
+* Live odds updates
+* Historical score updates
+* Verified match status changes
+
+Incoming payloads are normalized before being persisted or evaluated by the detection engine.
+
+### Detection Engine
+
+The detection engine compares current market state against previously stored odds snapshots.
+
+It evaluates:
+
+* Direction of price movement
+* Size of movement
+* Time elapsed between snapshots
+* Score changes
+* Match events
+* Cross-market agreement
+* Previous signal direction
+* Signal duplication and cooldown rules
+
+Detection is deterministic and does not depend on an LLM.
+
+### AI Explanation Layer
+
+When a valid signal is detected, SharpLine can use Groq to generate a concise explanation based only on stored facts.
+
+The explanation includes:
+
+* What changed
+* How large the movement was
+* When it happened
+* Whether the score changed
+* Which detection rule was triggered
+* Why the assigned action was selected
+
+If Groq is unavailable, SharpLine uses a deterministic fallback explanation. The signal remains available because signal detection does not depend on AI availability.
+
+## Technology Stack
+
+### Frontend
+
+* Next.js
+* React
+* TypeScript
+* Tailwind CSS
+* Vercel
+
+### Backend
+
+* Node.js
+* TypeScript
+* `tsx`
+* Railway background worker
+
+### Data and Infrastructure
+
+* TxLINE API
+* Supabase PostgreSQL
+* Groq API
+* Vercel
+* Railway
+
+## Database Model
+
+### `matches`
+
+Stores normalized fixture and match state.
+
+Typical fields include:
+
+* TxLINE fixture ID
+* Home team
+* Away team
+* Scheduled kickoff
+* Match status
+* Home score
+* Away score
+* Last synchronized timestamp
+
+### `odds_snapshots`
+
+Stores time-series market observations.
+
+Typical fields include:
+
+* Fixture ID
+* Market identifier
+* Selection
+* Odds value
+* Provider timestamp
+* Ingestion timestamp
+* Score at the time of observation
+
+### `market_signals`
+
+Stores detected market behavior.
+
+Typical fields include:
+
+* Fixture ID
+* Signal type
+* Action
+* Direction
+* Strength
+* Confidence
+* Previous odds
+* Current odds
+* Percentage movement
+* Detection evidence
+* AI explanation
+* AI provider
+* Detection timestamp
+* Idempotency key
+
+### `signal_resolutions`
+
+Stores the final evaluation of previously generated signals.
+
+Typical fields include:
+
+* Signal ID
+* Fixture ID
+* Resolution status
+* Final score
+* Outcome
+* Resolution reason
+* Resolved timestamp
+
+### `agent_runs`
+
+Tracks worker executions and operational status.
+
+Typical fields include:
+
+* Agent name
+* Run type
+* Start time
+* Completion time
+* Run status
+* Fixtures processed
+* Snapshots stored
+* Signals detected
+* Error information
+
+## Signal Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Observed
+    Observed --> Detected: Rule threshold reached
+    Detected --> Explained: Explanation generated
+    Explained --> Monitoring
+    Monitoring --> Resolved: Verified final result
+    Monitoring --> Expired: Resolution unavailable
+    Resolved --> [*]
+    Expired --> [*]
 ```
 
-<Warning>
-  Do not activate a devnet transaction on `https://txline.txodds.com`, and do not activate a mainnet transaction on `https://txline-dev.txodds.com`. Use the matching `apiOrigin` from the selected network.
-</Warning>
+A signal is created only when a configured rule is satisfied. It is then monitored until SharpLine obtains enough verified information to resolve it.
 
-## Purchase TxL (Optional)
+## Data Integrity
 
-<Info>
-  **Note**: Purchasing TxL tokens is optional. We offer [free tiers for World Cup and International Friendlies](/documentation/worldcup) data with no payment required. View all [subscription tiers](/documentation/subscription-tiers) to see free and premium options.
-</Info>
+SharpLine follows several data-integrity rules:
 
-In order to purchase TxL, your wallet will need to be funded with USDT. If you don't have USDT on Solana, you can swap for it using [Jupiter](https://jup.ag/) or another exchange.
+* No mock fixtures are displayed as live data
+* No hardcoded scores or odds are treated as real observations
+* Signals require stored market evidence
+* Duplicate signals are prevented using idempotency keys
+* Finished matches require verified completion data
+* Signal resolution requires final home and away scores
+* AI cannot create or modify numerical evidence
+* Missing upstream data produces an explicit waiting state
 
-TxL purchases use a 2-step process: request a quote from the backend, then verify and sign the transaction locally.
+When TxLINE has no active data, the dashboard communicates that the monitoring agent is waiting instead of fabricating activity.
 
-### Step 1: Request Purchase Quote
+## Finished-Match Reconciliation
 
-```typescript theme={null}
-// Get guest JWT
-const authResponse = await axios.post(`${apiOrigin}/auth/guest/start`);
-const jwt = authResponse.data.token;
+The reconciliation process checks stored matches against TxLINE historical score updates.
 
-// Request purchase quote
-const txlineAmount = 50; // Amount of TxL tokens to purchase
+A fixture is considered resolved only when SharpLine receives:
 
-const quoteResponse = await fetch(`${apiBaseUrl}/guest/purchase/quote`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${jwt}`
-  },
-  body: JSON.stringify({
-    buyerPubkey: wallet.publicKey.toBase58(),
-    txlineAmount: txlineAmount
-  })
-});
+* A completed score update
+* Final home and away scores
+* A completion timestamp
+* A valid terminal match status
 
-const quoteData = await quoteResponse.json();
-console.log(`Base Cost: ${quoteData.baseUsdtCost} USDT`);
-console.log(`Premium Fee: ${quoteData.feeUsdtAmount} USDT`);
-console.log(`Total: ${quoteData.totalUsdtCharged} USDT`);
+Reconciliation runs in dry-run mode by default so that proposed database changes can be inspected before they are written.
+
+```bash
+npm run reconcile:finished
 ```
 
-### Step 2: Verify and Sign Transaction
+To persist verified resolutions:
 
-```typescript theme={null}
-// Deserialize the transaction from the quote
-const txBuffer = Buffer.from(quoteData.transactionBase64, "base64");
-const transaction = anchor.web3.Transaction.from(txBuffer);
-
-// Verify transaction safety locally (recommended)
-// This ensures the transaction matches what you requested
-
-// Sign the transaction with either a local Keypair or a wallet adapter
-const signedTransaction =
-  "secretKey" in wallet
-    ? (transaction.partialSign(wallet), transaction)
-    : await wallet.signTransaction(transaction);
-
-// Broadcast to Solana
-const txSignature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-  skipPreflight: false,
-  preflightCommitment: "confirmed"
-});
-
-// Confirm transaction
-await connection.confirmTransaction(txSignature, "confirmed");
-console.log("Purchase successful:", txSignature);
+```bash
+npm run reconcile:finished -- --write
 ```
 
-<Note>
-  TxODDS may refuse purchase requests and ask for KYC (Know Your Customer) verification in accordance with compliance requirements.
-</Note>
+## Historical Backfill
 
-## Subscribe On-Chain
+The backfill process evaluates previously stored odds snapshots and attempts to detect signals that occurred before the current worker session.
 
-Subscribe to TxLINE on-chain after choosing a service level. Paid tiers require TxL; the free World Cup tiers do not require a TxL purchase. Choose between a standard subscription or a custom league selection.
-
-Derive the shared accounts once before using either subscription tab:
-
-```typescript theme={null}
-const [tokenTreasuryPda] = PublicKey.findProgramAddressSync(
-  [Buffer.from("token_treasury_v2")],
-  program.programId
-);
-
-const tokenTreasuryVault = getAssociatedTokenAddressSync(
-  txlTokenMint,
-  tokenTreasuryPda,
-  true,
-  TOKEN_2022_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID
-);
-
-const [pricingMatrixPda] = PublicKey.findProgramAddressSync(
-  [Buffer.from("pricing_matrix")],
-  program.programId
-);
-
-const userTokenAccount = getAssociatedTokenAddressSync(
-  txlTokenMint,
-  provider.wallet.publicKey,
-  false,
-  TOKEN_2022_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID
-);
+```bash
+npm run backfill
 ```
 
-<Tabs>
-  <Tab title="Standard Subscription">
-    ```typescript theme={null}
-    const SERVICE_LEVEL_ID = 1;
-    const DURATION_WEEKS = 4;
-    const SELECTED_LEAGUES: number[] = []; // Standard bundle
+Backfilling uses the same deterministic rules and idempotency protections as live detection.
 
-    const txSig = await program.methods
-      .subscribe(SERVICE_LEVEL_ID, DURATION_WEEKS)
-      .accounts({
-        user: provider.wallet.publicKey,
-        pricingMatrix: pricingMatrixPda,
-        tokenMint: txlTokenMint,
-        userTokenAccount,
-        tokenTreasuryVault,
-        tokenTreasuryPda,
-        tokenProgram: TOKEN_2022_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
-    ```
-  </Tab>
+It does not generate synthetic odds history.
 
-  <Tab title="Custom Leagues">
-    ```typescript theme={null}
-    const SERVICE_LEVEL_ID = 3;
-    const DURATION_WEEKS = 4;
-    const SELECTED_LEAGUES = [500001]; // Your league IDs
+## Local Development
 
-    const txSig = await program.methods
-      .subscribe(SERVICE_LEVEL_ID, DURATION_WEEKS)
-      .accounts({
-        user: provider.wallet.publicKey,
-        pricingMatrix: pricingMatrixPda,
-        tokenMint: txlTokenMint,
-        userTokenAccount,
-        tokenTreasuryVault,
-        tokenTreasuryPda,
-        tokenProgram: TOKEN_2022_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
-    ```
-  </Tab>
-</Tabs>
+### Requirements
 
-## Activate Your API Token
+* Node.js 20 or later
+* npm
+* Supabase project
+* TxLINE API credentials
+* Groq API key
+* Railway account for worker deployment
+* Vercel account for frontend deployment
 
-After subscribing on-chain, activate your API access by signing the transaction and calling the activation endpoint.
+### Installation
 
-```typescript theme={null}
-// Get guest JWT
-const authResponse = await axios.post(`${apiOrigin}/auth/guest/start`);
-const jwt = authResponse.data.token;
+Clone the repository:
 
-// Sign the subscription transaction
-const messageString = `${txSig}:${SELECTED_LEAGUES.join(",")}:${jwt}`;
-const message = new TextEncoder().encode(messageString);
-
-// For SELECTED_LEAGUES = [], this signs `${txSig}::${jwt}`.
-async function signActivationMessage(message: Uint8Array): Promise<Uint8Array> {
-  if ("signMessage" in wallet && wallet.signMessage) {
-    return wallet.signMessage(message);
-  }
-
-  const localPayer = (provider.wallet as anchor.Wallet & {
-    payer?: anchor.web3.Keypair;
-  }).payer;
-
-  if (localPayer) {
-    return nacl.sign.detached(message, localPayer.secretKey);
-  }
-
-  throw new Error("Wallet must support signMessage, or run with a local Anchor payer.");
-}
-
-const signatureBytes = await signActivationMessage(message);
-const walletSignature = Buffer.from(signatureBytes).toString("base64");
-
-// Activate API access
-const activationResponse = await axios.post(
-  `${apiBaseUrl}/token/activate`,
-  {
-    txSig,
-    walletSignature,
-    leagues: SELECTED_LEAGUES,
-  },
-  { headers: { Authorization: `Bearer ${jwt}` } }
-);
-
-const apiToken = activationResponse.data.token || activationResponse.data;
+```bash
+git clone https://github.com/0x-prv/sharpline.git
+cd sharpline
 ```
 
-You're now ready to use the API. Send both activated credentials with data API requests:
+Install dependencies:
 
-| Header          | Value                                        |
-| --------------- | -------------------------------------------- |
-| `Authorization` | `Bearer ${jwt}` from `/auth/guest/start`     |
-| `X-Api-Token`   | `apiToken` returned by `/api/token/activate` |
-
-## Next Steps
-
-* View the complete [API Reference](/api-reference/authentication/start-a-new-guest-session) to explore all available endpoints
-* Check out [Subscription Tiers](/documentation/subscription-tiers) for pricing and plan options
-* Try the [World Cup Free Tier](/documentation/worldcup) for instant free access
-
-> ## Documentation Index
-> Fetch the complete documentation index at: https://txline-docs.txodds.com/llms.txt
-> Use this file to discover all available pages before exploring further.
-
-# World Cup Free Tier
-
-> Access World Cup and International Friendlies data for free with TxLINE's complimentary tiers
-
-## Start Building with Free World Cup Data
-
-Experience the power of TxLINE's sports data API with our complimentary free tiers. Get instant access to World Cup and International Friendlies data with no payment required, no credit card needed, and no commitment. Choose between 60-second delayed data or real-time data - both completely free!
-
-## What's Included
-
-<CardGroup cols={2}>
-  <Card title="Two Free Tiers Available" icon="trophy">
-    **Service Level 1**: World Cup & Int Friendlies with 60-second delay
-    **Service Level 12**: World Cup & Int Friendlies in real-time
-  </Card>
-
-  <Card title="Historical Replay" icon="clock-rotate-left">
-    Full access to historical data for past matches and events analysis.
-  </Card>
-
-  <Card title="On-Chain Verification" icon="shield-check">
-    Cryptographically verifiable data with Solana blockchain anchoring.
-  </Card>
-
-  <Card title="Production Ready" icon="rocket">
-    Same reliable infrastructure as our premium tiers with comprehensive documentation.
-  </Card>
-</CardGroup>
-
-<Info>
-  **Perfect For**: Developers building proof-of-concepts, hobbyist projects, learning platforms, or testing TxLINE before upgrading to real-time data.
-</Info>
-
-## Getting Started
-
-### Step 1: Choose a Network and Set Up Your Wallet
-
-Use the same network for every step: the Solana RPC, TxLINE program ID, guest JWT, and activation endpoint must all match. A devnet subscription transaction cannot be activated on the mainnet API host.
-
-```bash theme={null}
-npm install @coral-xyz/anchor @solana/web3.js @solana/spl-token axios tweetnacl
+```bash
+npm install
 ```
 
-```typescript theme={null}
-import * as anchor from "@coral-xyz/anchor";
-import type { Txoracle } from "./types/txoracle"; // Use the matching mainnet/devnet type
-import txoracleIdl from "./idl/txoracle.json"; // Use the matching mainnet/devnet IDL
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  TOKEN_2022_PROGRAM_ID,
-  getAssociatedTokenAddressSync,
-} from "@solana/spl-token";
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
-import axios from "axios";
-import nacl from "tweetnacl";
+Create the required environment files for the frontend and worker.
 
-const NETWORK: "mainnet" | "devnet" = "devnet";
+Start the frontend:
 
-const CONFIG = {
-  mainnet: {
-    rpcUrl: "https://api.mainnet-beta.solana.com",
-    apiOrigin: "https://txline.txodds.com",
-    programId: new PublicKey("9ExbZjAapQww1vfcisDmrngPinHTEfpjYRWMunJgcKaA"),
-    txlTokenMint: new PublicKey("Zhw9TVKp68a1QrftncMSd6ELXKDtpVMNuMGr1jNwdeL"),
-  },
-  devnet: {
-    rpcUrl: "https://api.devnet.solana.com",
-    apiOrigin: "https://txline-dev.txodds.com",
-    programId: new PublicKey("6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J"),
-    txlTokenMint: new PublicKey("4Zao8ocPhmMgq7PdsYWyxvqySMGx7xb9cMftPMkEokRG"),
-  },
-} as const;
-
-const { rpcUrl, apiOrigin, programId, txlTokenMint } = CONFIG[NETWORK];
-const apiBaseUrl = `${apiOrigin}/api`;
-
-const connection = new Connection(rpcUrl, "confirmed");
-const provider = new anchor.AnchorProvider(connection, wallet, {
-  commitment: "confirmed",
-});
-anchor.setProvider(provider);
-
-const program = new anchor.Program<Txoracle>(
-  txoracleIdl as Txoracle,
-  provider
-);
-
-if (!program.programId.equals(programId)) {
-  throw new Error(
-    `Loaded IDL program ${program.programId.toBase58()} does not match ${NETWORK} program ${programId.toBase58()}`
-  );
-}
+```bash
+npm run dev
 ```
 
-### Step 2: Subscribe to Free Tier
+Start the worker using the worker package or configured worker command:
 
-Choose between the free service levels that are enabled on your network. Mainnet offers service level `1` for 60-second delayed World Cup and International Friendlies data and service level `12` for real-time data. Devnet currently documents service level `1`; check the on-chain pricing matrix before using any other devnet row.
-
-```typescript theme={null}
-// Free tier configuration - choose one:
-const SERVICE_LEVEL_ID = 1;  // World Cup & Int Friendlies (60-second delay)
-// const SERVICE_LEVEL_ID = 12; // Mainnet real-time World Cup & Int Friendlies
-const DURATION_WEEKS = 4; // Subscribe for 4 weeks at a time
-const SELECTED_LEAGUES: number[] = []; // Empty for standard bundle
-
-const [tokenTreasuryPda] = PublicKey.findProgramAddressSync(
-  [Buffer.from("token_treasury_v2")],
-  program.programId
-);
-
-const tokenTreasuryVault = getAssociatedTokenAddressSync(
-  txlTokenMint,
-  tokenTreasuryPda,
-  true,
-  TOKEN_2022_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID
-);
-
-const [pricingMatrixPda] = PublicKey.findProgramAddressSync(
-  [Buffer.from("pricing_matrix")],
-  program.programId
-);
-
-const userTokenAccount = getAssociatedTokenAddressSync(
-  txlTokenMint,
-  provider.wallet.publicKey,
-  false,
-  TOKEN_2022_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID
-);
-
-// Subscribe on-chain
-const txSig = await program.methods
-  .subscribe(SERVICE_LEVEL_ID, DURATION_WEEKS)
-  .accounts({
-    user: provider.wallet.publicKey,
-    pricingMatrix: pricingMatrixPda,
-    tokenMint: txlTokenMint,
-    userTokenAccount,
-    tokenTreasuryVault,
-    tokenTreasuryPda,
-    tokenProgram: TOKEN_2022_PROGRAM_ID,
-    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-    systemProgram: SystemProgram.programId,
-  })
-  .rpc();
-
-console.log("Subscription transaction:", txSig);
+```bash
+npm run worker
 ```
 
-<Note>
-  **No Payment Required**: Free tiers require no TxL payment. The transaction still registers your wallet subscription on-chain and must be activated with the matching TxLINE API host.
-</Note>
+Run TypeScript validation:
 
-### Step 3: Activate Your API Access
-
-After subscribing on-chain, activate your API token by signing and calling our activation endpoint.
-
-```typescript theme={null}
-// Get guest authentication token
-const authResponse = await axios.post(`${apiOrigin}/auth/guest/start`);
-const jwt = authResponse.data.token;
-
-// Create message to sign
-const messageString = `${txSig}:${SELECTED_LEAGUES.join(",")}:${jwt}`;
-const message = new TextEncoder().encode(messageString);
-
-// For SELECTED_LEAGUES = [], this signs `${txSig}::${jwt}`.
-async function signActivationMessage(message: Uint8Array): Promise<Uint8Array> {
-  if ("signMessage" in wallet && wallet.signMessage) {
-    return wallet.signMessage(message);
-  }
-
-  const localPayer = (provider.wallet as anchor.Wallet & {
-    payer?: anchor.web3.Keypair;
-  }).payer;
-
-  if (localPayer) {
-    return nacl.sign.detached(message, localPayer.secretKey);
-  }
-
-  throw new Error("Wallet must support signMessage, or run with a local Anchor payer.");
-}
-
-const signatureBytes = await signActivationMessage(message);
-const walletSignature = Buffer.from(signatureBytes).toString("base64");
-
-// Activate your API access
-const activationResponse = await axios.post(
-  `${apiBaseUrl}/token/activate`,
-  {
-    txSig,
-    walletSignature,
-    leagues: SELECTED_LEAGUES,
-  },
-  {
-    headers: { Authorization: `Bearer ${jwt}` }
-  }
-);
-
-// Save your API token
-const apiToken = activationResponse.data.token || activationResponse.data;
-console.log("API Token activated successfully!");
+```bash
+npm run typecheck
 ```
 
-### Step 4: Make Your First API Call
+## Environment Variables
 
-You're all set! Start fetching World Cup and International Friendlies data using your activated API credentials.
+The exact variables may differ between the frontend and worker deployments.
 
-Check out the complete [API Reference](/api-reference/authentication/start-a-new-guest-session) for available endpoints including:
+```env
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 
-* **Fixtures** - Get upcoming and current fixture metadata
-* **Odds** - Fetch snapshots, historical updates, and stream StablePrice odds
-* **Scores** - Fetch snapshots, historical updates, and stream score events
-* **Validation Proofs** - Retrieve fixture, odds, and score proofs for on-chain validation
+TXLINE_API_URL=
+TXLINE_API_KEY=
 
-Data API endpoints use `Authorization: Bearer ${jwt}` for the guest JWT and `X-Api-Token: ${apiToken}` for the activated API token.
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.1-8b-instant
+GROQ_TIMEOUT_MS=8000
 
-## Ready for More?
+LEGACY_WRITES_ENABLED=false
+```
 
-Love the free tier? Upgrade to unlock:
+### Security Notes
 
-<CardGroup cols={3}>
-  <Card title="Real-Time Data" icon="bolt">
-    Zero delay live data for time-sensitive applications
-  </Card>
+* Never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser
+* Keep TxLINE credentials on the server
+* Keep the Groq API key on the server
+* Store production secrets in Vercel or Railway environment settings
+* Do not commit `.env` files
+* Use Row Level Security for browser-accessible Supabase tables
 
-  <Card title="1000+ Leagues" icon="trophy">
-    Access to all major leagues worldwide
-  </Card>
+## Deployment
 
-  <Card title="Custom Leagues" icon="sliders">
-    Choose exactly which leagues you need
-  </Card>
-</CardGroup>
+### Frontend
 
-View our [Subscription Tiers](/documentation/subscription-tiers) to see all available options. Paid tiers start from just **500,000 TxL (\$500) per 28 days**.
+The Next.js frontend is deployed through Vercel.
 
-## Frequently Asked Questions
+Recommended settings:
 
-<AccordionGroup>
-  <Accordion title="Do I need to renew my free subscription?">
-    All subscriptions can be purchased for any duration in multiples of 4 weeks (28 days), up to 12 months. Simply re-subscribe when your access expires. There's no cost to renew free tiers.
-  </Accordion>
+```text
+Framework Preset: Next.js
+Install Command: npm install
+Build Command: npm run build
+Output Directory: Next.js default
+```
 
-  <Accordion title="Can I upgrade from free tier to paid?">
-    Absolutely! You can upgrade at any time by subscribing to a paid tier. Your new subscription will take effect immediately.
-  </Accordion>
+### Worker
 
-  <Accordion title="Is there a rate limit on free tier?">
-    No rate limits on API calls. However, data has a 60-second delay compared to premium real-time tiers.
-  </Accordion>
+The persistent monitoring worker is deployed through Railway.
 
-  <Accordion title="What happens if I don't renew?">
-    Your API access will expire after the subscription period ends. You can re-subscribe at any time to regain access.
-  </Accordion>
+The Railway service should:
 
-  <Accordion title="Can I use this for commercial projects?">
-    Yes! The free tier can be used for commercial projects. However, for production applications, we recommend upgrading to real-time data for the best user experience.
-  </Accordion>
-</AccordionGroup>
+* Run the worker entry point
+* Restart automatically after failures
+* Receive production environment variables
+* Maintain access to TxLINE, Supabase, and Groq
+* Produce structured execution logs
 
-***
+The frontend and worker are separate services. The frontend reads persisted intelligence from Supabase, while the worker continuously processes live external data.
 
-<Info>
-  **Ready to start?** Follow the steps above to get your free API access in under 5 minutes. No credit card required.
-</Info>
+## Operational Monitoring
+
+SharpLine records worker activity in `agent_runs`.
+
+Operational logs should make it possible to verify:
+
+* Whether fixtures were received
+* Whether scores and odds were normalized
+* How many snapshots were stored
+* Which detector rules were evaluated
+* Why a signal was created or skipped
+* Whether an AI explanation succeeded
+* Whether reconciliation found verified final results
+* Whether a run completed or failed
+
+## Current Limitations
+
+* Signal availability depends on TxLINE fixture and odds coverage
+* Empty periods may occur when no supported matches are active
+* Market movement is informational and does not guarantee an outcome
+* AI explanations are limited to the evidence available at detection time
+* Historical resolution depends on verified final score availability
+* SharpLine does not execute bets or manage user funds
+
+## Disclaimer
+
+SharpLine is an experimental market intelligence and research platform.
+
+Signals and AI explanations are provided for informational purposes only. They are not financial, gambling, or investment advice. Users are responsible for independently evaluating all information and complying with the laws applicable in their jurisdiction.
+
+## Project Links
+
+* Live application: [sharpline-xi.vercel.app](https://sharpline-xi.vercel.app)
+* GitHub: [github.com/0x-prv/sharpline](https://github.com/0x-prv/sharpline)
